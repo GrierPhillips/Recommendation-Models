@@ -13,7 +13,7 @@ ratings or linkages).
 class IMC(object):
     """Implementation of Inductive Matrix Completion."""
 
-    def __init__(self, rank, max_iter=30, lambda_=0.1):
+    def __init__(self, rank=None, max_iter=30, lambda_=0.1):
         """Create instance of IMC with given parameters."""
         self.rank = rank
         self.max_iter = max_iter
