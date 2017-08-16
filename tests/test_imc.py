@@ -39,7 +39,6 @@ class IMCTest(unittest.TestCase):
             item_att_feats.shape
         )
         self.in_array = item_att_feats.flatten()
-        pass
 
     def tearDown(self):
         """Teardown the IMC class after each test."""
@@ -62,7 +61,6 @@ class IMCTest(unittest.TestCase):
             actual,
             msg='Expected {}, but found {}.'.format(expected, actual)
         )
-        pass
 
     def test_fv_prime(self):
         """The _fv_prime function should return the gradient of the regularized sum squared error with respect to V."""  # noqa
@@ -76,7 +74,6 @@ class IMCTest(unittest.TestCase):
             actual,
             err_msg='Expected {}, but found {}.'.format(expected, actual)
         )
-        pass
 
     def test_fv_hess(self):
         """The _fv_hess function should return the hessian of the regularized sum squared error with respect to V."""  # noqa
@@ -91,7 +88,6 @@ class IMCTest(unittest.TestCase):
             actual,
             err_msg='Expected {}, but found {}.'.format(expected, actual)
         )
-        pass
 
     def test_fu(self):
         """The _fu function should return the regularized sum squared error."""
@@ -102,7 +98,6 @@ class IMCTest(unittest.TestCase):
             actual,
             msg='Expected {}, but found {}.'.format(expected, actual)
         )
-        pass
 
     def test_fu_prime(self):
         """The _fu_prime function should return the gradient of the regularized sum squared error with respect to U."""  # noqa
@@ -116,7 +111,6 @@ class IMCTest(unittest.TestCase):
             actual,
             err_msg='Expected {}, but found {}.'.format(expected, actual)
         )
-        pass
 
     def test_fu_hess(self):
         """The _fu_hess function should return the hessian of the regularized sum squared error with respect to U."""  # noqa
@@ -131,7 +125,6 @@ class IMCTest(unittest.TestCase):
             actual,
             err_msg='Expected {}, but found {}.'.format(expected, actual)
         )
-        pass
 
     def test_transform(self):
         """The transform method should return the W matrix from the fitted model."""  # noqa
