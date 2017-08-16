@@ -143,7 +143,8 @@ class IMCTest(unittest.TestCase):
             [2622400., 3306176.005, 3989952.01, 4673728.015, 6261280.02,
              7893872.025, 9526464.03, 11159056.035]
         )
-        actual_2 = self.imc0_5._fv_hess(self.input_v, hess_p, *self.args_v[0.5])
+        actual_2 = self.\
+            imc0_5._fv_hess(self.input_v, hess_p, *self.args_v[0.5])
         np.testing.assert_array_equal(
             expected_2,
             actual_2,
@@ -152,15 +153,94 @@ class IMCTest(unittest.TestCase):
 
     def test_fu(self):
         """The _fu function should return the regularized sum squared error."""
-        pass
+        expected_0 = 13063724.476444978
+        actual_0 = self.imc0._fu(self.input_u, *self.args_u[0])
+        self.assertEqual(
+            expected_0,
+            actual_0,
+            msg='Expected {}, but found {}.'.format(expected_0, actual_0)
+        )
+        expected_1 = 13063724.84
+        actual_1 = self.imc1._fu(self.input_u, *self.args_u[1])
+        self.assertEqual(
+            expected_1,
+            actual_1,
+            msg='Expected {}, but found {}.'.format(expected_1, actual_1)
+        )
+        expected_2 = 13063724.658222489
+        actual_2 = self.imc0_5._fu(self.input_u, *self.args_u[0.5])
+        self.assertEqual(
+            expected_2,
+            actual_2,
+            msg='Expected {}, but found {}.'.format(expected_2, actual_2)
+        )
 
     def test_fu_prime(self):
         """The _fu_prime function should return the gradient of the regularized sum squared error with respect to U."""  # noqa
-        pass
+        expected_0 = np.array(
+            [809800.01, 1094120.02, 1378440.03, 2050600.04, 2758664.05,
+             3466728.06]
+        )
+        actual_0 = self.imc0._fu_prime(self.input_u, *self.args_u[0])
+        np.testing.assert_array_equal(
+            expected_0,
+            actual_0,
+            err_msg='Expected {}, but found {}.'.format(expected_0, actual_0)
+        )
+        expected_1 = np.array(
+            [809800.01, 1094120.01, 1378440.01, 2050600.01, 2758664.01,
+             3466728.01]
+        )
+        actual_1 = self.imc1._fu_prime(self.input_u, *self.args_u[1])
+        np.testing.assert_array_equal(
+            expected_1,
+            actual_1,
+            err_msg='Expected {}, but found {}.'.format(expected_1, actual_1)
+        )
+        expected_2 = np.array(
+            [809800.01, 1094120.015, 1378440.02, 2050600.025, 2758664.03,
+             3466728.035]
+        )
+        actual_2 = self.imc0_5._fu_prime(self.input_u, *self.args_u[0.5])
+        np.testing.assert_allclose(
+            expected_2,
+            actual_2,
+            err_msg='Expected {}, but found {}.'.format(expected_2, actual_2)
+        )
 
     def test_fu_hess(self):
         """The _fu_hess function should return the hessian of the regularized sum squared error with respect to U."""  # noqa
-        pass
+        expected_0 = np.array(
+            [4353520., 5755160.01, 7156800.02, 10723504.03, 14175992.04,
+             17628480.05]
+        )
+        hess_p = np.arange(6)
+        actual_0 = self.imc0._fu_hess(self.input_u, hess_p, *self.args_u[0])
+        np.testing.assert_array_equal(
+            expected_0,
+            actual_0,
+            err_msg='Expected {}, but found {}.'.format(expected_0, actual_0)
+        )
+        expected_1 = np.array(
+            [4353520., 5755160., 7156800., 10723504., 14175992., 17628480.]
+        )
+        actual_1 = self.imc1._fu_hess(self.input_u, hess_p, *self.args_u[1])
+        np.testing.assert_array_equal(
+            expected_1,
+            actual_1,
+            err_msg='Expected {}, but found {}.'.format(expected_1, actual_1)
+        )
+        expected_2 = np.array(
+            [4353520., 5755160.005, 7156800.01, 10723504.015, 14175992.02,
+             17628480.025]
+        )
+        actual_2 = self.\
+            imc0_5._fu_hess(self.input_u, hess_p, *self.args_u[0.5])
+        np.testing.assert_array_equal(
+            expected_2,
+            actual_2,
+            err_msg='Expected {}, but found {}.'.format(expected_2, actual_2)
+        )
 
     def test_transform(self):
         """The transform method should return the W matrix from the fitted model."""  # noqa
