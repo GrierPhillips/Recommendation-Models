@@ -8,7 +8,7 @@ import warnings
 
 import numpy as np
 from scipy.sparse import lil_matrix
-from sklearn.exceptions import ConvergenceWarning
+from sklearn.exceptions import ConvergenceWarning, NotFittedError
 
 from src.imc import (IMC, _check_init, _cost, _cost_hess, _cost_prime,
                      _fit_inductive_matrix_completion, _format_data, _fw,
@@ -277,15 +277,11 @@ class IMCTest(unittest.TestCase):
         actual_w, actual_h = self.imcs['imc0']\
             .fit_transform(self.data['R'], self.data['X'], self.data['Y'])
         np.testing.assert_allclose(
-            expected_w, actual_w[:2],
-            err_msg='Expected {}, but found {}.'.format(expected_w, actual_w),
-            atol=1e-1, rtol=1e-2
-        )
+            expected_w, actual_w[:2], atol=1e-1, rtol=1e-2,
+            err_msg='Expected {}, but found {}.'.format(expected_w, actual_w))
         np.testing.assert_allclose(
-            expected_h, actual_h[:2],
-            err_msg='Expected {}, but found {}.'.format(expected_h, actual_h),
-            atol=1e-2, rtol=1e-1
-        )
+            expected_h, actual_h[:2], atol=1e-2, rtol=1e-1,
+            err_msg='Expected {}, but found {}.'.format(expected_h, actual_h))
         expected_w = np.array(
             [[6.96, 0.07, -6.81],
              [-5.13, -2.5, 0.14]])
@@ -295,15 +291,11 @@ class IMCTest(unittest.TestCase):
         actual_w, actual_h = self.imcs['imck']\
             .fit_transform(self.data['R'], self.data['X'], self.data['Y'])
         np.testing.assert_allclose(
-            expected_w, actual_w,
-            err_msg='Expected {}, but found {}.'.format(expected_w, actual_w),
-            rtol=1e-2, atol=1e-2
-        )
+            expected_w, actual_w, rtol=1e-2, atol=1e-2,
+            err_msg='Expected {}, but found {}.'.format(expected_w, actual_w))
         np.testing.assert_allclose(
-            expected_h, actual_h,
-            err_msg='Expected {}, but found {}.'.format(expected_h, actual_h),
-            rtol=1e-2, atol=1e-1
-        )
+            expected_h, actual_h, rtol=1e-2, atol=1e-1,
+            err_msg='Expected {}, but found {}.'.format(expected_h, actual_h))
         with warnings.catch_warnings(record=True) as warn:
             warnings.simplefilter('always')
             self.imcs['imck']\
@@ -319,17 +311,33 @@ class IMCTest(unittest.TestCase):
         actual_w = hasattr(result, 'components_w')
         self.assertEqual(
             expected, actual_w,
-            msg='Expecte {}, but found {}.'.format(expected, actual_w)
-        )
+            msg='Expected {}, but found {}.'.format(expected, actual_w))
         self.assertEqual(
             expected, actual_h,
-            msg='Expecte {}, but found {}.'.format(expected, actual_h)
-        )
+            msg='Expected {}, but found {}.'.format(expected, actual_h))
 
-    # def test_transform(self):
-    #     """The transform method should return the W matrix from the fitted model."""  # noqa
-    #     pass
-    #
+    def test_transform(self):
+        """The transform method should return the W matrix constructed from the fitted model."""  # noqa
+        with self.assertRaises(NotFittedError) as context:
+            self.imcs['imc0'].transform(
+                self.data['R'], self.data['X'], self.data['Y'])
+        expected_msg = "This IMC instance is not fitted yet. Call 'fit' " +\
+            "with appropriate arguments before using this method."
+        actual_msg = str(context.exception)
+        self.assertEqual(
+            expected_msg, actual_msg,
+            msg='Expected {}, but found {}.'.format(expected_msg, actual_msg))
+        expected = np.array(
+            [[6.74219527, 0.03787904, -6.66643887],
+             [0.21804929, 0.38164472, 0.54524014],
+             [0.0205578, 0.05989682, 0.09923584]])
+        self.imcs['imc0'].fit(self.data['R'], self.data['X'], self.data['Y'])
+        actual = self.imcs['imc0']\
+            .transform(self.data['R'], self.data['X'], self.data['Y'])
+        np.testing.assert_allclose(
+            expected, actual, rtol=1e-1, atol=1e-1,
+            err_msg='Expected {}, but found {}.'.format(expected, actual))
+
     # def test_predict_one(self):
     #     """The predict_one method should return the predicted rating for a given user, course pair."""  # noqa
     #     pass
