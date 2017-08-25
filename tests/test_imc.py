@@ -10,9 +10,9 @@ import numpy as np
 from scipy.sparse import lil_matrix
 from sklearn.exceptions import ConvergenceWarning
 
-from src.imc import (IMC, _fw, _fw_hess, _fw_prime,
-                     _fit_inductive_matrix_completion, _cost, _cost_hess,
-                     _cost_prime)
+from src.imc import (IMC, _check_init, _cost, _cost_hess, _cost_prime,
+                     _fit_inductive_matrix_completion, _format_data, _fw,
+                     _fw_hess, _fw_prime)
 
 
 class IMCTest(unittest.TestCase):
@@ -43,7 +43,8 @@ class IMCTest(unittest.TestCase):
         xh = X[rows]
         yh = Y[rows]
         bh = R[rows, cols]
-        self.data = {'R': bh, 'X': xh, 'Y': yh, 'H': H, 'W': W}
+        self.data = {
+            'r': bh, 'x': xh, 'y': yh, 'H': H, 'W': W, 'R': R, 'X': X, 'Y': Y}
         args_w = {
             key: (H, xh, yh, bh, 0.01, l1, W.shape)
             for (key, l1) in zip([0, 1, 0.5], [0, 1, 0.5])}
@@ -211,7 +212,7 @@ class IMCTest(unittest.TestCase):
             [[-4.70285197, 1.67619005, 8.05523207],
              [-13.22177753, 1.09728147, 15.4163405]])
         _, _, succ, msg = _fit_inductive_matrix_completion(
-            self.data['R'], self.data['X'], self.data['Y'], verbose=1)
+            self.data['r'], self.data['x'], self.data['y'], verbose=1)
         actual_msg = sys.stdout.getvalue().split('\n')[0].split(': ')[1]
         self.assertEqual(
             expected_msg, actual_msg,
@@ -223,10 +224,41 @@ class IMCTest(unittest.TestCase):
             expected_msg, msg,
             msg='Expected {}, but found {}.'.format(expected_msg, msg))
         actual_w, _, succ, msg = _fit_inductive_matrix_completion(
-            self.data['R'], self.data['X'], self.data['Y'], H=self.data['H'],
+            self.data['r'], self.data['x'], self.data['y'], H=self.data['H'],
             W=self.data['W'], n_components=2, update_H=False)
         np.testing.assert_allclose(
             actual_w, expected_w,
             err_msg='Expected {}, but found {}.'.format(expected_w, actual_w))
 
+    def test_check_init(self):
+        """The _check_init method should check to ensure that an array has a specified shape and is not all zeros, raising an error if not."""  # noqa
+        with self.assertRaises(ValueError) as context:
+            _check_init(self.data['H'], (3, 4), 'Check Init')
+        expected_msgs = [
+            'Array with wrong shape passed to Check Init. Expected (3, 4), ' +
+            'but got (2, 4).',
+            'Array passed to Check Init is full of zeros.']
+        self.assertEqual(
+            expected_msgs[0], str(context.exception),
+            msg='Expected {}, but found {}.'.format(
+                expected_msgs[0], context.exception))
+        with self.assertRaises(ValueError) as context:
+            _check_init(np.array([0, 0, 0]), (3, ), 'Check Init')
+        self.assertEqual(
+            expected_msgs[1], str(context.exception),
+            msg='Expected {}, but found {}.'.format(
+                expected_msgs[1], context.exception))
+
+    def test_format_data(self):
+        """The _format_data function should take in arrays for ratings, user attributes, and item attributes and return a 1-d array of ratings and 2-d arrays of attributes organized by the index of the rating."""  # noqa
+        r, x, y = _format_data(self.data['R'], self.data['X'], self.data['Y'])
+        self.assertEqual(
+            r.shape, (4, ),
+            msg='Expected {}, but found {}.'.format(r.shape, (4, )))
+        self.assertEqual(
+            x.shape, (4, 3),
+            msg='Expected {}, but found {}.'.format(x.shape, (4, 3)))
+        self.assertEqual(
+            y.shape, (4, 4),
+            msg='Expected {}, but found {}.'.format(y.shape, (4, 4)))
 
