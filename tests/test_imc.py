@@ -31,9 +31,8 @@ class IMCTest(unittest.TestCase):
     def setUp(self):
         """Set up the IMC class before each test."""
         self.imcs = {
-            'imc0': IMC(max_iter=20, alpha=0.01, l1_ratio=0),
-            'imck': IMC(n_components=2),
-            'imcw': IMC(n_components=2, max_iter=2)}
+            'imc0': IMC(alpha=0.01, l1_ratio=0),
+            'imck': IMC(n_components=2)}
         H = np.array([[1, 2, 3, 4], [5, 6, 7, 8]])
         X = np.array([[1, 2, 3], [4, 5, 6]])
         Y = np.array([[1, 2, 3, 4], [5, 6, 7, 8]])
@@ -261,4 +260,64 @@ class IMCTest(unittest.TestCase):
         self.assertEqual(
             y.shape, (4, 4),
             msg='Expected {}, but found {}.'.format(y.shape, (4, 4)))
+
+    def test_fit_transform(self):
+        """The fit_transform method should call the _fit_inductive_matrix_completion method to fit the IMC, finally returning the W and H matrices and returning a warning if convergence is not achieved."""  # noqa
+        expected_W = np.array(
+            [[6.96299671, 0.07276383, -6.81746906],
+             [-5.60313923, -2.55735318, 0.54]])
+        expected_H = np.array(
+            [[-7.3722333e+01, -4.8777391e+01, -2.3832449e+01, 1.11249223e+00],
+             [-2.5343764e+00, -1.1122199e+00, 3.0993648e-01, 1.7320929e+00]])
+        actual_W, actual_H = self.imcs['imc0']\
+            .fit_transform(self.data['R'], self.data['X'], self.data['Y'])
+        np.testing.assert_allclose(
+            expected_W, actual_W[:2],
+            err_msg='Expected {}, but found {}.'.format(expected_W, actual_W),
+            atol=1e-1, rtol=1e-2
+        )
+        np.testing.assert_allclose(
+            expected_H, actual_H[:2],
+            err_msg='Expected {}, but found {}.'.format(expected_H, actual_H),
+            atol=1e-2, rtol=1e-1
+        )
+        expected_W = np.array(
+            [[6.96, 0.07, -6.81],
+             [-5.13, -2.5, 0.14]])
+        expected_H = np.array(
+            [[-7.3722333e+01, -4.8777391e+01, -2.3832449e+01, 1.0],
+             [-2.5343764e+00, -1.1122199e+00, 3.0993648e-01, 1.7320929e+00]])
+        actual_W, actual_H = self.imcs['imck']\
+            .fit_transform(self.data['R'], self.data['X'], self.data['Y'])
+        np.testing.assert_allclose(
+            expected_W, actual_W,
+            err_msg='Expected {}, but found {}.'.format(expected_W, actual_W),
+            rtol=1e-2, atol=1e-2
+        )
+        np.testing.assert_allclose(
+            expected_H, actual_H,
+            err_msg='Expected {}, but found {}.'.format(expected_H, actual_H),
+            rtol=1e-2, atol=1e-1
+        )
+        with warnings.catch_warnings(record=True) as warn:
+            warnings.simplefilter('always')
+            self.imcs['imck']\
+                .fit_transform(self.data['R'], self.data['X'], self.data['Y'])
+            self.assertEqual(warn[0].category, ConvergenceWarning)
+
+    def test_fit(self):
+        """The fit method should call the fit_transform method and return self."""  # noqa
+        expected = True
+        result = self.imcs['imc0']\
+            .fit(self.data['R'], self.data['X'], self.data['Y'])
+        actual_H = hasattr(result, 'components_h')
+        actual_W = hasattr(result, 'components_w')
+        self.assertEqual(
+            expected, actual_W,
+            msg='Expecte {}, but found {}.'.format(expected, actual_W)
+        )
+        self.assertEqual(
+            expected, actual_H,
+            msg='Expecte {}, but found {}.'.format(expected, actual_H)
+        )
 
