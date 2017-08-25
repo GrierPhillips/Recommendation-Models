@@ -204,7 +204,7 @@ class IMCTest(unittest.TestCase):
             err_msg='Expected {}, but found {}.'.format(expected_2, actual_2))
 
     def test_fit_imc(self):
-        """The _fit_inductive_matrix_completion method should solve for W and H or just W depending on the value of `update_H`, return W, H and a result message."""  # noqa
+        """The _fit_inductive_matrix_completion function should solve for W and H or just W depending on the value of `update_H`, return W, H and a result message."""  # noqa
         expected_msg = (
             'Desired error not necessarily achieved due to precision loss.'
         )
@@ -231,7 +231,7 @@ class IMCTest(unittest.TestCase):
             err_msg='Expected {}, but found {}.'.format(expected_w, actual_w))
 
     def test_check_init(self):
-        """The _check_init method should check to ensure that an array has a specified shape and is not all zeros, raising an error if not."""  # noqa
+        """The _check_init function should check to ensure that an array has a specified shape and is not all zeros, raising an error if not."""  # noqa
         with self.assertRaises(ValueError) as context:
             _check_init(self.data['H'], (3, 4), 'Check Init')
         expected_msgs = [
