@@ -33,26 +33,30 @@ class IMCTest(unittest.TestCase):
         self.imcs = {
             'imc0': IMC(alpha=0.01, l1_ratio=0),
             'imck': IMC(n_components=2)}
-        H = np.array([[1, 2, 3, 4], [5, 6, 7, 8]])
-        X = np.array([[1, 2, 3], [4, 5, 6]])
-        Y = np.array([[1, 2, 3, 4], [5, 6, 7, 8]])
-        W = np.array([[1, 2, 3], [4, 5, 6]])
-        R = np.array([[300, 6000], [9000, 12000]])
-        rows, cols = lil_matrix(R).nonzero()
-        xh = X[rows]
-        yh = Y[rows]
-        bh = R[rows, cols]
+        h_component = np.array([[1, 2, 3, 4], [5, 6, 7, 8]])
+        user_atts = np.array([[1, 2, 3], [4, 5, 6]])
+        item_atts = np.array([[1, 2, 3, 4], [5, 6, 7, 8]])
+        w_component = np.array([[1, 2, 3], [4, 5, 6]])
+        ratings_mat = np.array([[300, 6000], [9000, 12000]])
+        rows, cols = lil_matrix(ratings_mat).nonzero()
+        x_h = user_atts[rows]
+        y_h = item_atts[rows]
+        b_h = ratings_mat[rows, cols]
         self.data = {
-            'r': bh, 'x': xh, 'y': yh, 'H': H, 'W': W, 'R': R, 'X': X, 'Y': Y}
+            'r': b_h, 'x': x_h, 'y': y_h, 'H': h_component, 'W': w_component,
+            'R': ratings_mat, 'X': user_atts, 'Y': item_atts}
         args_w = {
-            key: (H, xh, yh, bh, 0.01, l1, W.shape)
+            key: (h_component, x_h, y_h, b_h, 0.01, l1, w_component.shape)
             for (key, l1) in zip([0, 1, 0.5], [0, 1, 0.5])}
         args_cost = {
-            key: (xh, yh, bh, 0.01, l1, H.size, H.shape, W.shape)
+            key: (
+                x_h, y_h, b_h, 0.01, l1, h_component.size,
+                h_component.shape, w_component.shape)
             for (key, l1) in zip([0, 1, 0.5], [0, 1, 0.5])}
         self.args = {'args_w': args_w, 'args_cost': args_cost}
-        self.input_cost = np.concatenate([H.flatten(), W.flatten()])
-        self.input_w = W.flatten()
+        self.input_cost = np.concatenate(
+            [h_component.flatten(), w_component.flatten()])
+        self.input_w = w_component.flatten()
 
     def tearDown(self):
         """Teardown the IMC class after each test."""
@@ -250,53 +254,54 @@ class IMCTest(unittest.TestCase):
 
     def test_format_data(self):
         """The _format_data function should take in arrays for ratings, user attributes, and item attributes and return a 1-d array of ratings and 2-d arrays of attributes organized by the index of the rating."""  # noqa
-        r, x, y = _format_data(self.data['R'], self.data['X'], self.data['Y'])
+        r_h, x_h, y_h = _format_data(
+            self.data['R'], self.data['X'], self.data['Y'])
         self.assertEqual(
-            r.shape, (4, ),
-            msg='Expected {}, but found {}.'.format(r.shape, (4, )))
+            r_h.shape, (4, ),
+            msg='Expected {}, but found {}.'.format(r_h.shape, (4, )))
         self.assertEqual(
-            x.shape, (4, 3),
-            msg='Expected {}, but found {}.'.format(x.shape, (4, 3)))
+            x_h.shape, (4, 3),
+            msg='Expected {}, but found {}.'.format(x_h.shape, (4, 3)))
         self.assertEqual(
-            y.shape, (4, 4),
-            msg='Expected {}, but found {}.'.format(y.shape, (4, 4)))
+            y_h.shape, (4, 4),
+            msg='Expected {}, but found {}.'.format(y_h.shape, (4, 4)))
 
     def test_fit_transform(self):
         """The fit_transform method should call the _fit_inductive_matrix_completion method to fit the IMC, finally returning the W and H matrices and returning a warning if convergence is not achieved."""  # noqa
-        expected_W = np.array(
+        expected_w = np.array(
             [[6.96299671, 0.07276383, -6.81746906],
              [-5.60313923, -2.55735318, 0.54]])
-        expected_H = np.array(
+        expected_h = np.array(
             [[-7.3722333e+01, -4.8777391e+01, -2.3832449e+01, 1.11249223e+00],
              [-2.5343764e+00, -1.1122199e+00, 3.0993648e-01, 1.7320929e+00]])
-        actual_W, actual_H = self.imcs['imc0']\
+        actual_w, actual_h = self.imcs['imc0']\
             .fit_transform(self.data['R'], self.data['X'], self.data['Y'])
         np.testing.assert_allclose(
-            expected_W, actual_W[:2],
-            err_msg='Expected {}, but found {}.'.format(expected_W, actual_W),
+            expected_w, actual_w[:2],
+            err_msg='Expected {}, but found {}.'.format(expected_w, actual_w),
             atol=1e-1, rtol=1e-2
         )
         np.testing.assert_allclose(
-            expected_H, actual_H[:2],
-            err_msg='Expected {}, but found {}.'.format(expected_H, actual_H),
+            expected_h, actual_h[:2],
+            err_msg='Expected {}, but found {}.'.format(expected_h, actual_h),
             atol=1e-2, rtol=1e-1
         )
-        expected_W = np.array(
+        expected_w = np.array(
             [[6.96, 0.07, -6.81],
              [-5.13, -2.5, 0.14]])
-        expected_H = np.array(
+        expected_h = np.array(
             [[-7.3722333e+01, -4.8777391e+01, -2.3832449e+01, 1.0],
              [-2.5343764e+00, -1.1122199e+00, 3.0993648e-01, 1.7320929e+00]])
-        actual_W, actual_H = self.imcs['imck']\
+        actual_w, actual_h = self.imcs['imck']\
             .fit_transform(self.data['R'], self.data['X'], self.data['Y'])
         np.testing.assert_allclose(
-            expected_W, actual_W,
-            err_msg='Expected {}, but found {}.'.format(expected_W, actual_W),
+            expected_w, actual_w,
+            err_msg='Expected {}, but found {}.'.format(expected_w, actual_w),
             rtol=1e-2, atol=1e-2
         )
         np.testing.assert_allclose(
-            expected_H, actual_H,
-            err_msg='Expected {}, but found {}.'.format(expected_H, actual_H),
+            expected_h, actual_h,
+            err_msg='Expected {}, but found {}.'.format(expected_h, actual_h),
             rtol=1e-2, atol=1e-1
         )
         with warnings.catch_warnings(record=True) as warn:
@@ -310,14 +315,29 @@ class IMCTest(unittest.TestCase):
         expected = True
         result = self.imcs['imc0']\
             .fit(self.data['R'], self.data['X'], self.data['Y'])
-        actual_H = hasattr(result, 'components_h')
-        actual_W = hasattr(result, 'components_w')
+        actual_h = hasattr(result, 'components_h')
+        actual_w = hasattr(result, 'components_w')
         self.assertEqual(
-            expected, actual_W,
-            msg='Expecte {}, but found {}.'.format(expected, actual_W)
+            expected, actual_w,
+            msg='Expecte {}, but found {}.'.format(expected, actual_w)
         )
         self.assertEqual(
-            expected, actual_H,
-            msg='Expecte {}, but found {}.'.format(expected, actual_H)
+            expected, actual_h,
+            msg='Expecte {}, but found {}.'.format(expected, actual_h)
         )
 
+    # def test_transform(self):
+    #     """The transform method should return the W matrix from the fitted model."""  # noqa
+    #     pass
+    #
+    # def test_predict_one(self):
+    #     """The predict_one method should return the predicted rating for a given user, course pair."""  # noqa
+    #     pass
+    #
+    # def test_predict_all(self):
+    #     """The predict_all method should return the predicted ratings for all courses for a given user."""  # noqa
+    #     pass
+    #
+    # def score(self):
+    #     """Score method should return the root mean squared error for the reconstructed matrix."""  # noqa
+    #     pass
