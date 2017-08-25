@@ -82,61 +82,70 @@ class IMCTest(unittest.TestCase):
             msg='Expected {}, but found {}.'.format(expected_2, actual_2)
         )
 
-    def test_fw_prime(self):
-        """The _fw_prime function should return the gradient of the regularized sum squared error with respect to U."""  # noqa
+    def test_cost_prime(self):
+        """The _cost_prime function should return the gradient of the regularized sum squared error with respect to W and H."""  # noqa
         expected_0 = np.array(
-            [809800.01, 1094120.02, 1378440.03, 2050600.04, 2758664.05,
-             3466728.06]
+            [1630440.01, 1945552.02, 2260664.03, 2575776.04, 3924900.05,
+             4684792.06, 5444684.07, 6204576.08, 2847880.01, 3537800.02,
+             4227720.03, 7083496.04, 8802920.05, 10522344.06]
         )
-        actual_0 = _fw_prime(self.input_w, *self.args['args_w'][0])
+        actual_0 = _cost_prime(self.input_cost, *self.args['args_cost'][0])
         np.testing.assert_array_equal(
             expected_0, actual_0,
             err_msg='Expected {}, but found {}.'.format(expected_0, actual_0)
         )
         expected_1 = np.array(
-            [809800.01, 1094120.01, 1378440.01, 2050600.01, 2758664.01,
-             3466728.01]
+            [1630440.005, 1945552.005, 2260664.005, 2575776.005, 3924900.005,
+             4684792.005, 5444684.005, 6204576.005, 2847880.005, 3537800.005,
+             4227720.005, 7083496.005, 8802920.005, 10522344.005]
         )
-        actual_1 = _fw_prime(self.input_w, *self.args['args_w'][1])
+        actual_1 = _cost_prime(self.input_cost, *self.args['args_cost'][1])
         np.testing.assert_array_equal(
             expected_1, actual_1,
             err_msg='Expected {}, but found {}.'.format(expected_1, actual_1)
         )
         expected_2 = np.array(
-            [809800.01, 1094120.015, 1378440.02, 2050600.025, 2758664.03,
-             3466728.035]
+            [1630440.0075, 1945552.0125, 2260664.0175, 2575776.0225,
+             3924900.0275, 4684792.0325, 5444684.0375, 6204576.0425,
+             2847880.0075, 3537800.0125, 4227720.0175, 7083496.0225,
+             8802920.0275, 10522344.0325]
         )
-        actual_2 = _fw_prime(self.input_w, *self.args['args_w'][0.5])
+        actual_2 = _cost_prime(self.input_cost, *self.args['args_cost'][0.5])
         np.testing.assert_allclose(
             expected_2, actual_2,
             err_msg='Expected {}, but found {}.'.format(expected_2, actual_2)
         )
 
-    def test_fw_hess(self):
-        """The _fw_hess function should return the hessian of the regularized sum squared error with respect to U."""  # noqa
+    def test_cost_hess(self):
+        """The _cost_hess function should return the hessian of the regularized sum squared error with respect to W and H."""  # noqa
         expected_0 = np.array(
-            [4353520., 5755160.01, 7156800.02, 10723504.03, 14175992.04,
-             17628480.05]
+            [4158880., 5039936.01, 5920992.02, 6802048.03, 9999880.04,
+             12112496.05, 14225112.06, 16337728.07, 23516080.08, 29703800.09,
+             35891520.1, 58391536.11, 73709720.12, 89027904.13]
         )
-        hess_p = np.arange(6)
-        actual_0 = _fw_hess(self.input_w, hess_p, *self.args['args_w'][0])
+        hess_p = np.arange(14)
+        actual_0 = _cost_hess(self.input_cost, hess_p, *self.args['args_cost'][0])
         np.testing.assert_array_equal(
             expected_0, actual_0,
             err_msg='Expected {}, but found {}.'.format(expected_0, actual_0)
         )
         expected_1 = np.array(
-            [4353520., 5755160., 7156800., 10723504., 14175992., 17628480.]
+            [4158880., 5039936., 5920992., 6802048., 9999880., 12112496.,
+             14225112., 16337728., 23516080., 29703800., 35891520.,
+             58391536., 73709720., 89027904.]
         )
-        actual_1 = _fw_hess(self.input_w, hess_p, *self.args['args_w'][1])
+        actual_1 = _cost_hess(self.input_cost, hess_p, *self.args['args_cost'][1])
         np.testing.assert_array_equal(
             expected_1, actual_1,
             err_msg='Expected {}, but found {}.'.format(expected_1, actual_1)
         )
         expected_2 = np.array(
-            [4353520., 5755160.005, 7156800.01, 10723504.015, 14175992.02,
-             17628480.025]
+            [4158880., 5039936.005, 5920992.01, 6802048.015, 9999880.02,
+             12112496.025, 14225112.03, 16337728.035, 23516080.04,
+             29703800.045, 35891520.05, 58391536.055, 73709720.06,
+             89027904.065]
         )
-        actual_2 = _fw_hess(self.input_w, hess_p, *self.args['args_w'][0.5])
+        actual_2 = _cost_hess(self.input_cost, hess_p, *self.args['args_cost'][0.5])
         np.testing.assert_array_equal(
             expected_2, actual_2,
             err_msg='Expected {}, but found {}.'.format(expected_2, actual_2)
