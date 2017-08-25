@@ -11,7 +11,7 @@ from scipy.sparse import lil_matrix
 from sklearn.exceptions import ConvergenceWarning, NotFittedError
 
 from src.imc import (IMC, _check_init, _cost, _cost_hess, _cost_prime,
-                     _fit_inductive_matrix_completion, _format_data, _fw,
+                     _fit_imc, _format_data, _fw,
                      _fw_hess, _fw_prime)
 
 
@@ -207,14 +207,24 @@ class IMCTest(unittest.TestCase):
             err_msg='Expected {}, but found {}.'.format(expected_2, actual_2))
 
     def test_fit_imc(self):
-        """The _fit_inductive_matrix_completion function should solve for W and H or just W depending on the value of `update_H`, return W, H and a result message."""  # noqa
+        """The _fit_imc function should solve for W and H or just W depending on the value of `update_H`, return W, H and a result message."""  # noqa
+        with self.assertRaises(ValueError) as context:
+            _fit_imc(
+                self.data['r'], self.data['x'], self.data['y'],
+                n_components=0)
+        expected_msg = 'Number of components must be a positive integer; ' +\
+            'got (n_components=0).'
+        actual_msg = str(context.exception)
+        self.assertEqual(
+            expected_msg, actual_msg,
+            msg='Expected {}, but found {}.'.format(expected_msg, actual_msg))
         expected_msg = (
             'Desired error not necessarily achieved due to precision loss.'
         )
         expected_w = np.array(
             [[-4.70285197, 1.67619005, 8.05523207],
              [-13.22177753, 1.09728147, 15.4163405]])
-        _, _, succ, msg = _fit_inductive_matrix_completion(
+        _, _, succ, msg = _fit_imc(
             self.data['r'], self.data['x'], self.data['y'], verbose=1)
         actual_msg = sys.stdout.getvalue().split('\n')[0].split(': ')[1]
         self.assertEqual(
@@ -226,7 +236,7 @@ class IMCTest(unittest.TestCase):
         self.assertEqual(
             expected_msg, msg,
             msg='Expected {}, but found {}.'.format(expected_msg, msg))
-        actual_w, _, succ, msg = _fit_inductive_matrix_completion(
+        actual_w, _, succ, msg = _fit_imc(
             self.data['r'], self.data['x'], self.data['y'], H=self.data['H'],
             W=self.data['W'], n_components=2, update_H=False)
         np.testing.assert_allclose(
@@ -267,7 +277,7 @@ class IMCTest(unittest.TestCase):
             msg='Expected {}, but found {}.'.format(y_h.shape, (4, 4)))
 
     def test_fit_transform(self):
-        """The fit_transform method should call the _fit_inductive_matrix_completion method to fit the IMC, finally returning the W and H matrices and returning a warning if convergence is not achieved."""  # noqa
+        """The fit_transform method should call the _fit_imc method to fit the IMC, finally returning the W and H matrices and returning a warning if convergence is not achieved."""  # noqa
         expected_w = np.array(
             [[6.96299671, 0.07276383, -6.81746906],
              [-5.60313923, -2.55735318, 0.54]])
