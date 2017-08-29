@@ -382,8 +382,9 @@ class IMC(object):
         number of features in the item attributes matrix, all features are
         kept.
 
-    max_iter : int, default: 30
-        Maximum number of iterations to compute.
+    method : None | 'Newton-CG' | 'BFGS'
+        Algorithm used to find W and H that minimize the cost function.
+        Default: 'BFGS'
 
     alpha : double, default: 0.1
         Constant that multiplies the regularization terms. Set to zero to have
@@ -401,8 +402,12 @@ class IMC(object):
 
     Attributes
     ----------
-    components_ : array, [n_components, n_features]
-        Components of the data. This is the H matrix in the formula:
+    components_h : array, [n_components, q_attributes]
+        H component of the data. This is the H matrix in the formula:
+        ``R ~= XWHY``.
+
+    components_w : array, [n_components, p_attributes]
+        W component of the data. This is the W matrix in the formula:
         ``R ~= XWHY``.
 
     reconstruction_err_ : number
@@ -412,13 +417,11 @@ class IMC(object):
 
     """
 
-    def __init__(self, n_components=None, max_iter=30, alpha=0.1, l1_ratio=0,
+    def __init__(self, n_components=None, method='BFGS', alpha=0.1, l1_ratio=0,
                  verbose=0):
-        """Create instance of IMC with given parameters.
-
-        """
+        """Initialize instance of IMC."""
         self.n_components = n_components
-        self.max_iter = max_iter
+        self.method = method
         self.alpha = alpha
         self.l1_ratio = l1_ratio
         self.verbose = verbose
