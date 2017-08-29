@@ -20,7 +20,7 @@ def _cost(arr, *args):
     Parameters
     ----------
     arr : array-like, shape (n_samples, )
-        Concatenation of flattened components to minimize
+        Concatenation of flattened components to minimize.
 
     Returns
     -------
@@ -40,25 +40,47 @@ def _cost(arr, *args):
     return sse
 
 
-def _fh_prime(H, *args):
-    """Return the gradient of the regularized SSE for a given H.
+def _cost_prime(arr, *args):
+    """Return the gradient of the regularized SSE for given variables.
 
     Parameters
     ----------
-    H: array-like, shape (n_samples, n_features)
-        Component to minimize the cost function against.
+    arr: array-like, shape (n_samples, )
+        Concatenation of flattened components to minimize.
 
     Returns
     -------
-    gh: The gradient of the regularized sum squared error for the given H.
+    The gradient of the regularized sum squared error for the given variables.
 
     """
-    W, X, Y, R, lam, l1_ratio, shape = args
-    H = H.reshape(shape)
-    gh = W.dot(X.T).dot(X).dot(W.T).dot(H).dot(Y.T).dot(Y) -\
-        R.T.dot(X).dot(W.T).T.dot(Y) + (1 - l1_ratio) * lam * H + 0.5 *\
-        l1_ratio * lam
-    return gh.flatten()
+    users, items, ratings, lam, l1_ratio, h_size, h_shape, w_shape = args
+    h_component = arr[:h_size].reshape(h_shape)
+    w_component = arr[h_size:].reshape(w_shape)
+    w_h = w_component.T.dot(h_component)
+
+    def _h_prime():
+        y_m = items.dot(w_h.T)
+        h_diag = np.array([
+            users[i].dot(y_m[i]) for i in range(users.shape[0])]).flatten()
+        x_w = users.dot(w_component.T).T
+        wxr = np.vstack([x_w[i] * ratings for i in range(x_w.shape[0])])
+        g_h = items.T.dot(diags(h_diag).T.dot(x_w.T)) - items.T.dot(wxr.T) +\
+            (1 - l1_ratio) * lam * h_component.T + 0.5 * l1_ratio * lam
+        return g_h.T
+
+    def _w_prime():
+        x_m = users.dot(w_h)
+        w_diag = np.array([
+            items[i].dot(x_m[i]) for i in range(users.shape[0])]).flatten()
+        y_h = items.dot(h_component.T).T
+        hyr = np.vstack([y_h[i] * ratings for i in range(y_h.shape[0])])
+        g_w = users.T.dot(diags(w_diag).T.dot(y_h.T)) - users.T.dot(hyr.T) +\
+            (1 - l1_ratio) * lam * w_component.T + 0.5 * l1_ratio * lam
+        return g_w.T
+
+    return np.concatenate([_h_prime().flatten(), _w_prime().flatten()])
+
+
 
 
 def _fh_hess(H, p, *args):
