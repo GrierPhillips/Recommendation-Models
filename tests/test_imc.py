@@ -419,12 +419,21 @@ class IMCTest(unittest.TestCase):
             .fit(self.data['R'], self.data['X'], self.data['Y'])
         actual_h = hasattr(result, 'components_h')
         actual_w = hasattr(result, 'components_w')
+        actual_err = hasattr(result, 'reconstruction_err_')
         self.assertEqual(
             expected, actual_w,
             msg='Expected {}, but found {}.'.format(expected, actual_w))
         self.assertEqual(
             expected, actual_h,
             msg='Expected {}, but found {}.'.format(expected, actual_h))
+        self.assertEqual(
+            expected, actual_err,
+            msg='Expected {}, but found {}.'.format(expected, actual_err))
+        expected_err = 2277.3339983196356
+        err = result.reconstruction_err_
+        np.testing.assert_allclose(
+            expected_err, err,
+            err_msg='Expected {}, but found {}.'.format(expected_err, err))
 
     def test_transform(self):
         """The transform method should return the W matrix constructed from the fitted model."""  # noqa
