@@ -585,3 +585,31 @@ class IMC(object):
         predictions = self._predict(X, Y)
         return predictions
 
+    def score(self, true, X, Y):
+        """Return the root mean squared error of the reconstructed matrix.
+
+        Parameters
+        ----------
+        true : {array-like, sparse-matrix}, shape (n_samples, m_samples)
+            The true ratings matrix.
+
+        X : array, shape (n_samples, p_attributes)
+            Attribute array for one user.
+
+        Y : array, shape (m_samples, q_attributes)
+            Attribute array for one item.
+
+        Returns
+        -------
+        rmse : float
+            The root mean squared error of the reconstructed matrix.
+
+        """
+        check_is_fitted(self, 'n_components_')
+        r, x, y = _format_data(true, X, Y)
+        w_h = self.components_w.T.dot(self.components_h)
+        x_m = x.dot(w_h)
+        preds = np.array([x_m[row].dot(y[row].T) for row in range(x.shape[0])])
+        mse = mean_squared_error(r, preds)
+        rmse = np.sqrt(mse)
+        return rmse
