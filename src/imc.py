@@ -14,27 +14,30 @@ from numpy.linalg import norm
 import scipy.optimize as so
 
 
-def _fh(H, *args):
-    """Return the regularized sum squared error for a given H.
+def _cost(arr, *args):
+    """Return the regularized sum squared error for given variables.
 
     Parameters
     ----------
-    H: array-like, shape (n_samples, n_feature)
-        Component to minimize the cost function against.
+    arr : array-like, shape (n_samples, )
+        Concatenation of flattened components to minimize
 
     Returns
     -------
-    gh: The sum squared error for the given H.
+    sse : The sum squared error for the given variables.
 
     """
-    W, X, Y, R, lam, l1_ratio, shape = args
-    H = H.reshape(shape)
-    gh = np.sum(
-        0.5 * np.asarray(R - X.dot(W.T).dot(H).dot(Y.T)) ** 2 + 0.5 * lam *
-        (1 - l1_ratio) * (norm(W) + norm(H)) + lam * l1_ratio *
-        (norm(W, 1) + norm(H, 1))
+    users, items, ratings, lam, l1_ratio, h_size, h_shape, w_shape = args
+    h_component = arr[:h_size].reshape(h_shape)
+    w_component = arr[h_size:].reshape(w_shape)
+    x_m = users.dot(w_component.T).dot(h_component)
+    preds = np.array([items[i].dot(x_m[i]) for i in range(users.shape[0])])
+    sse = 0.5 * np.sum(
+        (ratings - preds.flatten()) ** 2 +
+        (1 - l1_ratio) * lam * (norm(w_component) + norm(h_component)) +
+        2 * l1_ratio * lam * (norm(w_component, 1) + norm(h_component, 1))
     )
-    return gh
+    return sse
 
 
 def _fh_prime(H, *args):
