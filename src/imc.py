@@ -213,9 +213,111 @@ def _fw_hess(_, s_vec, *args):
     return g_w.flatten()
 
 
+def _fit_imc(R, X, Y, W=None, H=None, method='BFGS', n_components=None,
+             alpha=0.1, l1_ratio=0, update_H=True, verbose=0):
+    """Compute Inductive Matrix Completion (IMC) with AltMin-LRROM.
+
+    The objective function is minimized with an alternating minimization of W
+    and H. Each minimization is calculated by the Newton-CG algorithm.
+
+    Parameters
+    ----------
+    R : {array-like, sparse matrix} shape (n_samples, m_samples)
+        Constant matrix where rows correspond to users and columns to items.
+
+    X : array-like, shape (n_samples, p_attributes)
+        Constant user attribute matrix.
+
+    Y : array-like, shape (m_samples, q_attributes)
+        Constant item attribute matrix.
+
+    W : array-like, shape (k_components, p_attributes)
+        Initial guess for the solution.
+
+    H : array-like, shape (k_components, q_attributes)
+        Initial guess for the solution.
+
+    method : None | 'Newton-CG' | 'BFGS'
+        Algorithm used to find W and H that minimize the cost function.
+        Default: 'BFGS'
+
+    n_components : int
+        Number of components.
+
+    alpha : double, default: 0.1
+        Constant that multiplies the regularization terms.
+
+    l1_ratio : double, default: 0
+        The regularization mixing parameter, with 0 <= l1_ratio <= 1.
+        For l1_ratio = 0 the penalty is an L2 penalty.
+        For l1_ratio = 1 it is an L1 penalty.
+        For 0 < l1_ratio < 1, the penalty is a combination of L1 and L2.
+
+    update_H : boolean, default: True
+        Set to True, both W and H will be estimated from initial guesses.
+        Set to False, only W will be estimated.
+
+    verbose : integer, default: 0
+        The verbosity level.
+
     Returns
     -------
-    gw: The hessian of the regularized sum squared error for the given W.
+    W : array-like, shape (k_components, p_attributes)
+        Solution to the least squares problem.
+
+    H : array-like, shape (k_components, q_attributes)
+        Solution to the least squares problem.
+
+    res.success : boolean
+        Whether or not the minimization converged.
+
+    res.message :
+        The message returned by the minimization process.
+
+    References
+    ----------
+    Jain, Prateek and Dhillon, Inderjit S. "Provable Inductive Matrix
+    Completion." arXiv1306.0626v1 [cs.LG], 2013.
+
+    """
+    _, n_features = X.shape
+    if n_components is None:
+        n_components = n_features
+
+    if not isinstance(n_components, INTEGER_TYPES) or n_components <= 0:
+        raise ValueError("Number of components must be a positive integer;"
+                         " got (n_components=%r)." % n_components)
+
+    if H is None:
+        H = np.zeros((n_components, Y.shape[1]))
+    if W is None:
+        sum_x_r_y = diags(R).T.dot(X).T.dot(Y) / R.size
+        u, _, _ = svd(sum_x_r_y, False)
+        W = u.T[:n_components]
+
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', category=RuntimeWarning)
+
+        if update_H:
+            x0 = np.concatenate([H.flatten(), W.flatten()])
+            res = so.minimize(
+                _cost, x0, method=method, jac=_cost_prime, hessp=_cost_hess,
+                args=(X, Y, R, alpha, l1_ratio, H.size, H.shape, W.shape),
+                options={'disp': verbose})
+            H = res['x'][:H.size].reshape(H.shape)
+            W = res['x'][H.size:H.size + W.size].reshape(W.shape)
+        else:
+            _check_init(H, (n_components, Y.shape[1]), 'IMC (Input H)')
+            x0 = W.flatten()
+            res = so.minimize(
+                _fw, x0, args=(H, X, Y, R, alpha, l1_ratio, W.shape),
+                method=method, jac=_fw_prime, hessp=_fw_hess,
+                options={'disp': verbose})
+            W = res['x'].reshape(W.shape)
+
+    return W, H, res.success, res.message
+
+
 
     """
     H, X, Y, R, lam, l1_ratio, shape = args
