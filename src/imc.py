@@ -564,10 +564,24 @@ class IMC(object):
         prediction = self._predict(X, Y)
         return prediction
 
+    def predict_all(self, X, Y):
+        """Get the predictions for all combinations of user/item pairs.
 
-    def predict_all(self):
-        pass
+        Parameters
+        ----------
+        X : array, shape (n_samples, p_attributes)
+            Attribute array for users.
 
-    def score(self):
-        pass
+        Y : array, shape (m_samples, q_attributes)
+            Attribute array items.
+
+        Returns
+        -------
+        predictions : array, shape (n_samples, m_samples)
+            Predicted values for the user/item pairs.
+
+        """
+        check_is_fitted(self, 'n_components_')
+        predictions = self._predict(X, Y)
+        return predictions
 
