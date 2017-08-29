@@ -7,7 +7,7 @@ import unittest
 import warnings
 
 import numpy as np
-from scipy.sparse import lil_matrix
+from scipy.sparse import csc_matrix
 from sklearn.exceptions import ConvergenceWarning, NotFittedError
 
 from src.imc import (IMC, _check_init, _cost, _cost_hess, _cost_prime,
@@ -33,12 +33,16 @@ class IMCTest(unittest.TestCase):
         self.imcs = {
             'imc0': IMC(alpha=0.01, l1_ratio=0),
             'imck': IMC(n_components=2)}
-        h_component = np.array([[1, 2, 3, 4], [5, 6, 7, 8]])
-        user_atts = np.array([[1, 2, 3], [4, 5, 6]])
-        item_atts = np.array([[1, 2, 3, 4], [5, 6, 7, 8]])
-        w_component = np.array([[1, 2, 3], [4, 5, 6]])
+        h_component = np.arange(1, 41).reshape(2, 20)
+        user_atts = np.array([
+            [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0],
+            [0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0]])
+        item_atts = np.array([
+            [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0],
+            [0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]])
+        w_component = np.arange(1, 31).reshape(2, 15)
         ratings_mat = np.array([[300, 6000], [9000, 12000]])
-        rows, cols = lil_matrix(ratings_mat).nonzero()
+        rows, cols = csc_matrix(ratings_mat).nonzero()
         x_h = user_atts[rows]
         y_h = item_atts[rows]
         b_h = ratings_mat[rows, cols]
@@ -53,7 +57,15 @@ class IMCTest(unittest.TestCase):
                 x_h, y_h, b_h, 0.01, l1, h_component.size,
                 h_component.shape, w_component.shape)
             for (key, l1) in zip([0, 1, 0.5], [0, 1, 0.5])}
-        self.args = {'args_w': args_w, 'args_cost': args_cost}
+        args_sparse = (
+            csc_matrix(x_h), csc_matrix(y_h), b_h, 0.01, 0, h_component.size,
+            h_component.shape, w_component.shape)
+        args_ws = (
+            h_component, csc_matrix(x_h), csc_matrix(y_h), b_h, 0.01, 0,
+            w_component.shape)
+        self.args = {
+            'args_w': args_w, 'args_cost': args_cost, 'args_s': args_sparse,
+            'args_ws': args_ws}
         self.input_cost = np.concatenate(
             [h_component.flatten(), w_component.flatten()])
         self.input_w = w_component.flatten()
@@ -64,17 +76,21 @@ class IMCTest(unittest.TestCase):
 
     def test_cost(self):
         """The _cost function should return the regularized sum squared error."""  # noqa
-        expected_0 = 37011644.476444982
+        expected_0 = 41891260.920639724
         actual_0 = _cost(self.input_cost, *self.args['args_cost'][0])
         self.assertEqual(
             expected_0, actual_0,
             msg='Expected {}, but found {}.'.format(expected_0, actual_0))
-        expected_1 = 37011644.840000004
+        actual_s = _cost(self.input_cost, *self.args['args_s'])
+        self.assertEqual(
+            expected_0, actual_s,
+            msg='Expected {}, but found {}.'.format(expected_0, actual_s))
+        expected_1 = 41891260.199999988
         actual_1 = _cost(self.input_cost, *self.args['args_cost'][1])
         self.assertEqual(
             expected_1, actual_1,
             msg='Expected {}, but found {}.'.format(expected_1, actual_1))
-        expected_2 = 37011644.658222489
+        expected_2 = 41891260.560319841
         actual_2 = _cost(self.input_cost, *self.args['args_cost'][0.5])
         self.assertEqual(
             expected_2, actual_2,
@@ -83,76 +99,124 @@ class IMCTest(unittest.TestCase):
     def test_cost_prime(self):
         """The _cost_prime function should return the gradient of the regularized sum squared error with respect to W and H."""  # noqa
         expected_0 = np.array(
-            [1630440.01, 1945552.02, 2260664.03, 2575776.04, 3924900.05,
-             4684792.06, 5444684.07, 6204576.08, 2847880.01, 3537800.02,
-             4227720.03, 7083496.04, 8802920.05, 10522344.06])
+            [235620.01, 0.02, 0.03, 0.04, -12095.95, 0.06, 235620.07, 0.08,
+             -12095.91, 0.1, 0.11, 0.12, 223524.13, 0.14, 0.15, 0.16,
+             -12095.83, 0.18, 235620.19, 0.2, 740520.21, 0.22, 0.23, 0.24,
+             -31535.75, 0.26, 740520.27, 0.28, -31535.71, 0.3, 0.31, 0.32,
+             708984.33, 0.34, 0.35, 0.36, -31535.63, 0.38, 740520.39, 0.4,
+             448800.01, 0.02, 0.03, -19007.96, 0.05, 0.06, 448800.07, 0.08,
+             0.09, -19007.9, 0.11, 0.12, 448800.13, -19007.86, 0.15,
+             1346400.16, 0.17, 0.18, -53567.81, 0.2, 0.21, 1346400.22, 0.23,
+             0.24, -53567.75, 0.26, 0.27, 1346400.28, -53567.71, 0.3])
         actual_0 = _cost_prime(self.input_cost, *self.args['args_cost'][0])
-        np.testing.assert_array_equal(
-            expected_0, actual_0,
+        np.testing.assert_allclose(
+            expected_0, actual_0, rtol=1e-1, atol=1e-1,
             err_msg='Expected {}, but found {}.'.format(expected_0, actual_0))
+        actual_s = _cost_prime(self.input_cost, *self.args['args_s'])
+        np.testing.assert_allclose(
+            expected_0, actual_s, rtol=1e-1, atol=1e-1,
+            err_msg='Expected {}, but found {}.'.format(expected_0, actual_s))
         expected_1 = np.array(
-            [1630440.005, 1945552.005, 2260664.005, 2575776.005, 3924900.005,
-             4684792.005, 5444684.005, 6204576.005, 2847880.005, 3537800.005,
-             4227720.005, 7083496.005, 8802920.005, 10522344.005])
+            [235620.005, 0.005, 0.005, 0.005, -12095.995, 0.005, 235620.005,
+             0.005, -12095.995, 0.005, 0.005, 0.005, 223524.005, 0.005, 0.005,
+             0.005, -12095.995, 0.005, 235620.005, 0.005, 740520.005, 0.005,
+             0.005, 0.005, -31535.995, 0.005, 740520.005, 0.005, -31535.995,
+             0.005, 0.005, 0.005, 708984.005, 0.005, 0.005, 0.005, -31535.995,
+             0.005, 740520.005, 0.005, 448800.005, 0.005, 0.005, -19007.995,
+             0.005, 0.005, 448800.005, 0.005, 0.005, -19007.995, 0.005, 0.005,
+             448800.005, -19007.995, 0.005, 1346400, 0.005, 0.005, -53567.995,
+             0.005, 0.005, 1346400, 0.005, 0.005, -53567.995, 0.005, 0.005,
+             1346400, -53567.995, 0.005])
         actual_1 = _cost_prime(self.input_cost, *self.args['args_cost'][1])
-        np.testing.assert_array_equal(
-            expected_1, actual_1,
+        np.testing.assert_allclose(
+            expected_1, actual_1, rtol=1e-1, atol=1e-1,
             err_msg='Expected {}, but found {}.'.format(expected_1, actual_1))
         expected_2 = np.array(
-            [1630440.0075, 1945552.0125, 2260664.0175, 2575776.0225,
-             3924900.0275, 4684792.0325, 5444684.0375, 6204576.0425,
-             2847880.0075, 3537800.0125, 4227720.0175, 7083496.0225,
-             8802920.0275, 10522344.0325])
+            [235620.008, 0.0125, 0.0175, 0.0225, -12095.9725, 0.0325,
+             235620.038, 0.0425, -12095.9525, 0.0525, 0.0575, 0.0625,
+             223524.068, 0.0725, 0.0775, 0.0825, -12095.9125, 0.0925,
+             235620.098, 0.1025, 740520.107, 0.1125, 0.1175, 0.1225,
+             -31535.8725, 0.1325, 740520.137, 0.1425, -31535.8525, 0.1525,
+             0.1575, 0.1625, 708984.167, 0.1725, 0.1775, 0.1825, -31535.8125,
+             0.1925, 740520.197, 0.2025, 448800.008, 0.0125, 0.0175,
+             -19007.9775, 0.0275, 0.0325, 448800.037, 0.0425, 0.0475,
+             -19007.9475, 0.0575, 0.0625, 4.48800068e+05, -19007.9275, 0.0775,
+             1346400.08, 0.0875, 0.0925, -53567.9025, .0125, 0.1075,
+             1346400.11, 0.1175, 0.1225, -53567.8725, 0.1325, 0.1375,
+             1346400.14, -53567.8525, 0.1525])
         actual_2 = _cost_prime(self.input_cost, *self.args['args_cost'][0.5])
         np.testing.assert_allclose(
-            expected_2, actual_2,
+            expected_2, actual_2, rtol=1e-2, atol=1e-1,
             err_msg='Expected {}, but found {}.'.format(expected_2, actual_2))
 
     def test_cost_hess(self):
         """The _cost_hess function should return the hessian of the regularized sum squared error with respect to W and H."""  # noqa
         expected_0 = np.array(
-            [4158880., 5039936.01, 5920992.02, 6802048.03, 9999880.04,
-             12112496.05, 14225112.06, 16337728.07, 23516080.08, 29703800.09,
-             35891520.1, 58391536.11, 73709720.12, 89027904.13])
-        hess_p = np.arange(14)
+            [353304, 0.01, 0.02, 0.03, 553280.04, 0.05, 353304.06, 0.07,
+             553280.08, 0.09, 0.1, 0.11, 906584.12, 0.13, 0.14, 0.15,
+             553280.16, 0.17, 353304.18, 0.19, 1110384.20, 0.21, 0.22, 0.23,
+             1442480.24, 0.25, 1110384.26, 0.27, 1442480.28, 0.29, 0.3, 0.31,
+             2552864.32, 0.33, 0.34, 0.35, 1442480.36, 0.37, 1110384.38, 0.39,
+             2198400.4, 0.41, 0.42, 2634720.43, 0.44, 0.45, 2198400.46, 0.47,
+             0.48, 2634720.49, 0.5, 0.51, 2198400.52, 2634720.53, 0.54,
+             6595200.55, 0.56, 0.57, 7425120.58, 0.59, 0.6, 6595200.61, 0.62,
+             0.63, 7425120.64, 0.65, 0.66, 6595200.67, 7425120.68, 0.69])
+        hess_p = np.arange(70)
         actual_0 = _cost_hess(
             self.input_cost, hess_p, *self.args['args_cost'][0])
-        np.testing.assert_array_equal(
-            expected_0, actual_0,
+        np.testing.assert_allclose(
+            expected_0, actual_0, rtol=1e-2, atol=1e-2,
             err_msg='Expected {}, but found {}.'.format(expected_0, actual_0))
+        actual_s = _cost_hess(self.input_cost, hess_p, *self.args['args_s'])
+        np.testing.assert_allclose(
+            expected_0, actual_s, rtol=1e-2, atol=1e-2,
+            err_msg='Expected {}, but found {}.'.format(expected_0, actual_s))
         expected_1 = np.array(
-            [4158880., 5039936., 5920992., 6802048., 9999880., 12112496.,
-             14225112., 16337728., 23516080., 29703800., 35891520.,
-             58391536., 73709720., 89027904.])
+            [353304, 0, 0, 0, 553280, 0, 353304, 0, 553280, 0, 0, 0, 906584, 0,
+             0, 0, 553280, 0, 353304, 0, 1110384, 0, 0, 0, 1442480, 0, 1110384,
+             0, 1442480, 0, 0, 0, 2552864, 0, 0, 0, 1442480, 0, 1110384, 0,
+             2198400, 0, 0, 2634720, 0, 0, 2198400, 0, 0, 2634720, 0, 0,
+             2198400, 2634720, 0, 6595200, 0, 0, 7425120, 0, 0, 6595200, 0, 0,
+             7425120, 0, 0, 6595200, 7425120, 0])
         actual_1 = _cost_hess(
             self.input_cost, hess_p, *self.args['args_cost'][1])
-        np.testing.assert_array_equal(
-            expected_1, actual_1,
+        np.testing.assert_allclose(
+            expected_1, actual_1, rtol=1e-2, atol=1e-2,
             err_msg='Expected {}, but found {}.'.format(expected_1, actual_1))
         expected_2 = np.array(
-            [4158880., 5039936.005, 5920992.01, 6802048.015, 9999880.02,
-             12112496.025, 14225112.03, 16337728.035, 23516080.04,
-             29703800.045, 35891520.05, 58391536.055, 73709720.06,
-             89027904.065])
+            [353304, 0.005, 0.01, 0.015, 553280.02, 0.025, 353304.03, 0.035,
+             553280.04, 0.045, 0.05, 0.055, 906584.06, 0.065, 0.07, 0.075,
+             553280.08, 0.085, 353304.09, 0.095, 1110384.1, 0.105, 0.11, 0.115,
+             1442480.12, 0.125, 1110384.13, 0.135, 1442480.14, 0.145, 0.15,
+             0.155, 2552864.16, 0.165, 0.17, 0.175, 1442480.18, 0.185,
+             1110384.19, 0.195, 2198400.2, 0.205, 0.21, 2634720.21, 0.22,
+             0.225, 2198400.23, 0.235, 0.24, 2634720.25, 0.25, 0.255,
+             2198400.26, 2634720.27, 0.27, 6595200.28, 0.28, 0.285, 7425120.29,
+             0.295, 0.3, 6595200.3, 0.31, 0.315, 7425120.32, 0.325, 0.33,
+             6595200.33, 7425120.34, 0.345])
         actual_2 = _cost_hess(
             self.input_cost, hess_p, *self.args['args_cost'][0.5])
-        np.testing.assert_array_equal(
-            expected_2, actual_2,
+        np.testing.assert_allclose(
+            expected_2, actual_2, rtol=1e-2, atol=1e-2,
             err_msg='Expected {}, but found {}.'.format(expected_2, actual_2))
 
     def test_fw(self):
         """The _fw function should return the regularized sum squared error."""
-        expected_0 = 37011644.476444982
+        expected_0 = 41891260.920639724
         actual_0 = _fw(self.input_w, *self.args['args_w'][0])
         self.assertEqual(
             expected_0, actual_0,
             msg='Expected {}, but found {}.'.format(expected_0, actual_0))
-        expected_1 = 37011644.840000004
+        actual_s = _fw(self.input_w, *self.args['args_ws'])
+        self.assertEqual(
+            expected_0, actual_s,
+            msg='Expected {}, but found {}.'.format(expected_0, actual_s))
+        expected_1 = 41891260.199999988
         actual_1 = _fw(self.input_w, *self.args['args_w'][1])
         self.assertEqual(
             expected_1, actual_1,
             msg='Expected {}, but found {}.'.format(expected_1, actual_1))
-        expected_2 = 37011644.658222489
+        expected_2 = 41891260.560319841
         actual_2 = _fw(self.input_w, *self.args['args_w'][0.5])
         self.assertEqual(
             expected_2, actual_2,
@@ -161,49 +225,71 @@ class IMCTest(unittest.TestCase):
     def test_fw_prime(self):
         """The _fw_prime function should return the gradient of the regularized sum squared error with respect to W."""  # noqa
         expected_0 = np.array(
-            [2847880.01, 3537800.02, 4227720.03, 7083496.04, 8802920.05,
-             10522344.06])
+            [4.488e+05, 0.02, 0.03, -1.9007e+04, 0.05, 0.06, 4.488e+05, 0.08,
+             0.09, -1.9007e+04, 0.11e-01, 0.12, 4.488e+05, -1.9007e+04, 0.15,
+             1.3464e+06, 0.17, 0.18, -5.3567e+04, 0.2, 0.21, 1.3464e+06, 0.23,
+             0.24, -5.3567e+04, 0.26, 0.27, 1.3464e+06, -5.3567e+04, 0.3])
         actual_0 = _fw_prime(self.input_w, *self.args['args_w'][0])
-        np.testing.assert_array_equal(
-            expected_0, actual_0,
+        np.testing.assert_allclose(
+            expected_0, actual_0, rtol=1e-1, atol=1e-1,
             err_msg='Expected {}, but found {}.'.format(expected_0, actual_0))
+        actual_s = _fw_prime(self.input_w, *self.args['args_ws'])
+        np.testing.assert_allclose(
+            expected_0, actual_s, rtol=1e-1, atol=1e-1,
+            err_msg='Expected {}, but found {}.'.format(expected_0, actual_s))
         expected_1 = np.array(
-            [2847880.005, 3537800.005, 4227720.005, 7083496.005, 8802920.005,
-             10522344.005])
+            [4.488e+05, 0.005, 0.005, -1.9007e+04, 0.005, 0.005, 4.488e+05,
+             0.005, 0.005, -1.9007e+04, 0.005, 0.005, 4.488e+05, -1.9007e+04,
+             0.005, 1.3464e+06, 0.005, 0.005, -5.3567e+04, 0.005, 0.005,
+             1.3464e+06, 0.005, 0.005, -5.3567e+04, 0.005, 0.005, 1.3464e+06,
+             -5.3567e+04, 0.005])
         actual_1 = _fw_prime(self.input_w, *self.args['args_w'][1])
-        np.testing.assert_array_equal(
-            expected_1, actual_1,
+        np.testing.assert_allclose(
+            expected_1, actual_1, rtol=1e-1, atol=1e-1,
             err_msg='Expected {}, but found {}.'.format(expected_1, actual_1))
         expected_2 = np.array(
-            [2847880.0075, 3537800.0125, 4227720.0175, 7083496.0225,
-             8802920.0275, 10522344.0325])
+            [4.488e+05, 0.0125, 0.0175, -1.9007e+04, 0.0275, 0.0325, 4.488e+05,
+             0.0425, 0.0475, -1.9007e+04, 0.0575, 0.0625, 4.488e+05,
+             -1.9007e+04, 0.0775, 1.3464e+06, 0.0875, 0.0925, -5.3567e+04,
+             0.1025, 0.1075, 1.3464e+06, 0.1175, 0.1225, -5.3567e+04, 0.1325,
+             0.1375, 1.3464e+06, -5.3567e+04, 0.1525])
         actual_2 = _fw_prime(self.input_w, *self.args['args_w'][0.5])
         np.testing.assert_allclose(
-            expected_2, actual_2,
+            expected_2, actual_2, rtol=1e-2,
             err_msg='Expected {}, but found {}.'.format(expected_2, actual_2))
 
     def test_fw_hess(self):
         """The _fw_hess function should return the hessian of the regularized sum squared error with respect to W."""  # noqa
         expected_0 = np.array(
-            [6831280., 8631800.01, 10432320.02, 16961776.03, 21418520.04,
-             25875264.05])
-        hess_p = np.arange(6)
+            [6.624e+05, 0.01, 0.02, 8.606e+05, 0.04, 0.05, 6.624e+05, 0.07,
+             0.08, 8.606e+05, 0.1, 0.11, 6.624e+05, 8.606e+05, 0.14, 1.987e+06,
+             0.16, 0.17, 2.425e+06, 0.18, 0.2, 1.987e+06, 0.22, 0.23,
+             2.425e+06, 0.25, 0.26, 1.987e+06, 2.425e+06, 0.29])
+        hess_p = np.arange(30)
         actual_0 = _fw_hess(self.input_w, hess_p, *self.args['args_w'][0])
-        np.testing.assert_array_equal(
-            expected_0, actual_0,
+        np.testing.assert_allclose(
+            expected_0, actual_0, rtol=1e-2, atol=1e-1,
             err_msg='Expected {}, but found {}.'.format(expected_0, actual_0))
+        actual_s = _fw_hess(self.input_w, hess_p, *self.args['args_ws'])
+        np.testing.assert_allclose(
+            expected_0, actual_s, rtol=1e-2, atol=1e-1,
+            err_msg='Expected {}, but found {}.'.format(expected_0, actual_s))
         expected_1 = np.array(
-            [6831280., 8631800., 10432320., 16961776., 21418520., 25875264.])
+            [662400., 0., 0., 860640., 0., 0., 662400., 0., 0., 860640., 0.,
+             0., 662400., 860640., 0., 1987200., 0., 0., 2425440., 0., 0.,
+             1987200., 0., 0., 2425440., 0., 0., 1987200., 2425440., 0.])
         actual_1 = _fw_hess(self.input_w, hess_p, *self.args['args_w'][1])
         np.testing.assert_array_equal(
             expected_1, actual_1,
             err_msg='Expected {}, but found {}.'.format(expected_1, actual_1))
         expected_2 = np.array(
-            [6831280., 8631800.005, 10432320.01, 16961776.015, 21418520.02,
-             25875264.025])
+            [6.624e+05, 0.005, 0.01, 8.606e+05, 0.02, 0.025, 6.624e+05, 0.035,
+             0.04, 8.606e+05, 0.05, 0.055, 6.624e+05, 8.606e+05, 0.07,
+             1.987e+06, 0.08, 0.085, 2.425e+06, 0.095, 0.1, 1.987e+06, 0.11,
+             0.115, 2.425e+06, 0.125, 0.13, 1.987e+06, 2.425e+06, 0.145])
         actual_2 = _fw_hess(self.input_w, hess_p, *self.args['args_w'][0.5])
-        np.testing.assert_array_equal(
-            expected_2, actual_2,
+        np.testing.assert_allclose(
+            expected_2, actual_2, rtol=1e-2, atol=1e-1,
             err_msg='Expected {}, but found {}.'.format(expected_2, actual_2))
 
     def test_fit_imc(self):
@@ -222,8 +308,12 @@ class IMCTest(unittest.TestCase):
             'Desired error not necessarily achieved due to precision loss.'
         )
         expected_w = np.array(
-            [[-4.70285197, 1.67619005, 8.05523207],
-             [-13.22177753, 1.09728147, 15.4163405]])
+            [[2.6249, 1.91e-5, 2.87e-5, 8.8955, 2.40e-5, 2.88e-5, 2.6249,
+              3.85e-5, 4.33e-5, 8.8955, 5.29e-5, 5.77e-5, 2.625, 8.8955,
+              7.22e-5],
+             [7.8749, 8.18e-5, 8.66e-5, 25.0692, 9.63e-5, 1.01e-4, 7.8749,
+              1.1e-4, 1.15e-4, 25.0692, 1.25e-4, 1.3e-4, 7.875, 25.0693,
+              1.44e-4]])
         _, _, succ, msg = _fit_imc(
             self.data['r'], self.data['x'], self.data['y'], verbose=1)
         actual_msg = sys.stdout.getvalue().split('\n')[0].split(': ')[1]
@@ -240,7 +330,7 @@ class IMCTest(unittest.TestCase):
             self.data['r'], self.data['x'], self.data['y'], H=self.data['H'],
             W=self.data['W'], n_components=2, update_H=False)
         np.testing.assert_allclose(
-            actual_w, expected_w,
+            actual_w, expected_w, rtol=1e-2, atol=1e-2,
             err_msg='Expected {}, but found {}.'.format(expected_w, actual_w))
 
     def test_check_init(self):
@@ -249,7 +339,7 @@ class IMCTest(unittest.TestCase):
             _check_init(self.data['H'], (3, 4), 'Check Init')
         expected_msgs = [
             'Array with wrong shape passed to Check Init. Expected (3, 4), ' +
-            'but got (2, 4).',
+            'but got (2, 20).',
             'Array passed to Check Init is full of zeros.']
         self.assertEqual(
             expected_msgs[0], str(context.exception),
@@ -270,34 +360,44 @@ class IMCTest(unittest.TestCase):
             r_h.shape, (4, ),
             msg='Expected {}, but found {}.'.format(r_h.shape, (4, )))
         self.assertEqual(
-            x_h.shape, (4, 3),
+            x_h.shape, (4, 15),
             msg='Expected {}, but found {}.'.format(x_h.shape, (4, 3)))
         self.assertEqual(
-            y_h.shape, (4, 4),
+            y_h.shape, (4, 20),
             msg='Expected {}, but found {}.'.format(y_h.shape, (4, 4)))
 
     def test_fit_transform(self):
         """The fit_transform method should call the _fit_imc method to fit the IMC, finally returning the W and H matrices and returning a warning if convergence is not achieved."""  # noqa
         expected_w = np.array(
-            [[6.96299671, 0.07276383, -6.81746906],
-             [-5.60313923, -2.55735318, 0.54]])
+            [[-0.5249, 1.076e-16, 0, -0.8931, 0, 0, -0.5249, 0, 0, -0.8931, 0,
+              0, -0.5249, -0.8931, 0],
+             [0.7753, 0, 0, 0.8659, 0, 0, 0.7753, 0, 0, 0.8659, 0, 0, 0.7753,
+              0.8659, 0]])
         expected_h = np.array(
-            [[-7.3722333e+01, -4.8777391e+01, -2.3832449e+01, 1.11249223e+00],
-             [-2.5343764e+00, -1.1122199e+00, 3.0993648e-01, 1.7320929e+00]])
+            [[-55.4986, 0, 0, 0, -956.8486, 0, -55.4986, 0, -956.8486, 0, 0, 0,
+              -1012.3473, 0, 0, 0, -956.8486, 0, -55.4986, 0],
+             [145.8458, 0, 0, 0, -27.2898, 0, 145.8458, 0, -27.2898, 0, 0, 0,
+              118.556, 0, 0, 0, -27.2898, 0, 145.8458, 0]])
         actual_w, actual_h = self.imcs['imc0']\
             .fit_transform(self.data['R'], self.data['X'], self.data['Y'])
         np.testing.assert_allclose(
             expected_w, actual_w[:2], atol=1e-1, rtol=1e-2,
-            err_msg='Expected {}, but found {}.'.format(expected_w, actual_w))
+            err_msg='Expected {}, but found {}.'.format(
+                expected_w, actual_w[:2]))
         np.testing.assert_allclose(
             expected_h, actual_h[:2], atol=1e-2, rtol=1e-1,
-            err_msg='Expected {}, but found {}.'.format(expected_h, actual_h))
+            err_msg='Expected {}, but found {}.'.format(
+                expected_h, actual_h[:2]))
         expected_w = np.array(
-            [[6.96, 0.07, -6.81],
-             [-5.13, -2.5, 0.14]])
+            [[-0.5341, 1.05e-16, 0, -0.8937, 0, 0, -0.5341, 0, 0, -0.8937, 0,
+              0, -0.5341, -0.8937, 0],
+             [0.7735, 0, 0, 0.766, 0, 0, 0.7735, 0, 0, 0.766, 0, 0, 0.7735,
+              0.766, 0]])
         expected_h = np.array(
-            [[-7.3722333e+01, -4.8777391e+01, -2.3832449e+01, 1.0],
-             [-2.5343764e+00, -1.1122199e+00, 3.0993648e-01, 1.7320929e+00]])
+            [[-54.4324, 0, 0, 0, -956.9354, 0, -54.4324, 0, -956.9354, 0, 0, 0,
+              -1011.3678, 0, 0, 0, -956.9354, 0, -54.4324, 0],
+             [142.6703, 0, 0, 0, -25.6562, 0, 142.6703, 0, -25.6562, 0, 0, 0,
+              117.0141, 0, 0, 0, -25.6562, 0, 142.6703, 0]])
         actual_w, actual_h = self.imcs['imck']\
             .fit_transform(self.data['R'], self.data['X'], self.data['Y'])
         np.testing.assert_allclose(
@@ -337,13 +437,12 @@ class IMCTest(unittest.TestCase):
         self.assertEqual(
             expected_msg, actual_msg,
             msg='Expected {}, but found {}.'.format(expected_msg, actual_msg))
-        expected = np.array(
-            [[6.74219527, 0.03787904, -6.66643887],
-             [0.21804929, 0.38164472, 0.54524014],
-             [0.0205578, 0.05989682, 0.09923584]])
+        expected = np.array([
+            -0.7286, 6.062e-25, 0, -0.9013, 0, 0, -0.7285, 0, 0, -0.9013, 0,
+            0, -0.7285, -0.9013, 0])
         self.imcs['imc0'].fit(self.data['R'], self.data['X'], self.data['Y'])
-        actual = self.imcs['imc0']\
-            .transform(self.data['R'], self.data['X'], self.data['Y'])
+        actual = self.imcs['imc0'].transform(
+            self.data['R'], self.data['X'], self.data['Y'])[0]
         np.testing.assert_allclose(
             expected, actual, rtol=1e-1, atol=1e-1,
             err_msg='Expected {}, but found {}.'.format(expected, actual))
