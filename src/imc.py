@@ -9,9 +9,20 @@ and for which only features are known but no dyadic information (such as
 ratings or linkages).
 """
 
+
+import numbers
+import warnings
+
 import numpy as np
-from numpy.linalg import norm
+from numpy.linalg import norm, svd
 import scipy.optimize as so
+from scipy.sparse import csc_matrix, diags, issparse
+from sklearn.exceptions import ConvergenceWarning
+from sklearn.metrics import mean_squared_error
+from sklearn.utils.validation import check_is_fitted, check_array
+
+
+INTEGER_TYPES = (numbers.Integral, np.integer)
 
 
 def _cost(arr, *args):
