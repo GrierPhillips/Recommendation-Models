@@ -426,60 +426,48 @@ class IMC(object):
         self.l1_ratio = l1_ratio
         self.verbose = verbose
 
-    def fit_transform(self, R, X, Y):
+    def fit_transform(self, R, X, Y, W=None, H=None):
         """Learn IMC model for given data and return the transformed data.
 
         Parameters
         ----------
-        R: {array-like, sparse matrix}, shape (n_samples, n_features)
+        R : {array-like, sparse matrix}, shape (n_samples, m_features)
             Data matrix to be decomposed.
-        X: array, shape (n_samples, p_features)
+
+        X : array, shape (n_samples, p_attributes)
             Attribute matrix for users.
-        Y: array, shape (n_features, q_features)
+
+        Y : array, shape (m_features, q_attributes)
             Attribute matrix for items.
+
+        W : array-like, shape (k_components, p_attributes)
+            Initial guess for the W component of the IMC solution.
+
+        H : array-like, shape (k_components, q_attributes)
+            Initial guess for the H component of the IMC solution.
 
         Returns
         -------
-        W: array, shape (min(self.n_components, q_features), p_features)
+        W : array, shape (min(self.n_components, q_attributes), p_attributes)
+
+        H : array, shape (min(self.n_components, q_attributes), q_attributes)
 
         """
-        if not issparse(R):
-            R = lil_matrix(R)
-        sum_x_r_y = R.T.dot(X).T.dot(Y) / R.nonzero()[0].size
-        u, _, _ = svd(sum_x_r_y, False)
-        W = u.T
-        if self.n_components and self.n_components < W.shape[0]:
-            W = W[:self.n_components, :]
+        if self.n_components and self.n_components < X.shape[1]:
             self.n_components_ = self.n_components
         else:
-            self.n_components_ = W.shape[0]
-        H = np.random.rand(self.n_components_, Y.shape[1])
-        W, H, _ = _fit_inductive_matrix_completion(
-            R, X, Y, W, H, tol=1e-4, max_iter=self.max_iter, alpha=self.alpha,
-            l1_ratio=self.l1_ratio, update_H=True, verbose=self.verbose)
-        # for _ in range(self.max_iter):
-        #     H_hat = so.fmin_ncg(
-        #         self._fh,
-        #         H.flatten(),
-        #         self._fh_prime,
-        #         fhess_p=self._fh_hess,
-        #         args=(W, X, Y, R, self.alpha, self.l1_ratio, H.shape),
-        #         disp=0
-        #     ).reshape(H.shape)
-        #     qH, _ = qr(H_hat.T)
-        #     H = qH.T
-        #     W_hat = so.fmin_ncg(
-        #         self._fw,
-        #         W.flatten(),
-        #         self._fw_prime,
-        #         fhess_p=self._fw_hess,
-        #         args=(H, X, Y, R, self.alpha, self.l1_ratio, W.shape),
-        #         disp=0
-        #     ).reshape(W.shape)
-        #     qW, _ = qr(W_hat.T)
-        #     W = qW.T
-        self.components_ = H
-        return W
+            self.n_components_ = X.shape[1]
+        r, x, y = _format_data(R, X, Y)
+        W, H, success, msg = _fit_imc(
+            r, x, y, W=W, H=H, n_components=self.n_components_,
+            method=self.method, alpha=self.alpha, l1_ratio=self.l1_ratio,
+            update_H=True, verbose=self.verbose)
+        if not success:
+            warnings.warn(msg, ConvergenceWarning, stacklevel=1)
+        self.components_h = H
+        self.components_w = W
+        self.reconstruction_err_ = self.score(R, X, Y)
+        return W, H
 
     def fit(self, R, X, Y):
         """Learn IMC model for the data R, with attribute data X and Y.
