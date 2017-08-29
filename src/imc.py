@@ -326,13 +326,50 @@ def _check_init(A, shape, whom):
         raise ValueError('Array passed to {} is full of zeros.'.format(whom))
 
 
+def _format_data(R, X, Y):
+    """Ensure R, X, and Y are structured properly for IMC.
+
+    The IMC is fit by utilizing a 1-d array of ratings, shape (n, ), and
+    2-d arrays of user and item attributes, shape (n, p) and (n, q)
+    respectively. This method ensures that when data is passed in as
+    matrices of unique users and items or with a matrix of ratings, will be
+    properly formatted.
+
+    Parameters
+    ----------
+    R : {array-like, sparse matrix}, shape (n_samples, m_features)
+        Data matrix to be decomposed.
+
+    X : array, shape (n_samples, p_attributes)
+        Attribute matrix for users.
+
+    Y : array, shape (m_features, q_attributes)
+        Attribute matrix for items.
+
+    Returns
+    -------
+    r : array, shape (x_samples, )
+        Array of actual ratings.
+
+    x : array, shape (x_samples, p_attributes)
+        Array of user attributes. The row index of the array corresponds to
+        the index of the rating in r.
+
+    y : array, shape (x_samples, q_attributes)
+        Array of item attributes. The row index of the array corresponds to
+        the index of the rating in r.
 
     """
-    H, X, Y, R, lam, l1_ratio, shape = args
-    S = p.reshape(shape)
-    gw = H.dot(Y.T).dot(Y).dot(H.T).dot(S).dot(X.T).dot(X) +\
-        (1 - l1_ratio) * lam * S
-    return gw.flatten()
+    R = check_array(R, accept_sparse='csc')
+    X = check_array(X, accept_sparse='csc')
+    Y = check_array(Y, accept_sparse='csc')
+    if not issparse(R):
+        R = csc_matrix(R)
+    rows, cols = R.nonzero()
+    r = np.array(R[rows, cols]).flatten()
+    x = X[rows]
+    y = Y[rows]
+    return r, x, y
 
 
 class IMC(object):
