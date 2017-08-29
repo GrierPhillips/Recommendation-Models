@@ -318,6 +318,14 @@ def _fit_imc(R, X, Y, W=None, H=None, method='BFGS', n_components=None,
     return W, H, res.success, res.message
 
 
+def _check_init(A, shape, whom):
+    if np.shape(A) != shape:
+        raise ValueError('Array with wrong shape passed to {}. Expected {}, '
+                         'but got {}.'.format(whom, shape, np.shape(A)))
+    if np.max(A) == 0:
+        raise ValueError('Array passed to {} is full of zeros.'.format(whom))
+
+
 
     """
     H, X, Y, R, lam, l1_ratio, shape = args
