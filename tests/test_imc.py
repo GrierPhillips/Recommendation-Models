@@ -447,6 +447,24 @@ class IMCTest(unittest.TestCase):
             expected, actual, rtol=1e-1, atol=1e-1,
             err_msg='Expected {}, but found {}.'.format(expected, actual))
 
+    def test_predict_one(self):
+        """The predict_one method should call the predict method with the given user/item pair."""  # noqa
+        with self.assertRaises(NotFittedError) as context:
+            self.imcs['imc0'].predict_one(
+                self.data['X'][0], self.data['Y'][0])
+        expected_msg = "This IMC instance is not fitted yet. Call 'fit' " +\
+            "with appropriate arguments before using this method."
+        actual_msg = str(context.exception)
+        self.assertEqual(
+            expected_msg, actual_msg,
+            msg='Expected {}, but found {}.'.format(expected_msg, actual_msg))
+        expected = 3150.0282526174856
+        self.imcs['imc0'].fit(self.data['R'], self.data['X'], self.data['Y'])
+        actual = self.imcs['imc0'].predict_one(
+            self.data['X'][0], self.data['Y'][0])
+        np.testing.assert_allclose(
+            expected, actual, rtol=1e-2, atol=1e-2,
+            err_msg='Expected {}, but found {}.'.format(expected, actual))
 
     def test_predict(self):
         """The _predict method should return the predicted ratings for all given user/item pairs."""  # noqa
@@ -463,6 +481,27 @@ class IMCTest(unittest.TestCase):
         self.imcs['imc0'].fit(self.data['R'], self.data['X'], self.data['Y'])
         actual = self.imcs['imc0']._predict(
             self.data['X'][0], self.data['Y'][0])
+        np.testing.assert_allclose(
+            expected, actual, rtol=1e-2, atol=1e-2,
+            err_msg='Expected {}, but found {}.'.format(expected, actual))
+
+    def test_predict_all(self):
+        """The predict_all method should call the _predict method with the given user/item pairs."""  # noqa
+        with self.assertRaises(NotFittedError) as context:
+            self.imcs['imc0'].predict_all(
+                self.data['X'], self.data['Y'])
+        expected_msg = "This IMC instance is not fitted yet. Call 'fit' " +\
+            "with appropriate arguments before using this method."
+        actual_msg = str(context.exception)
+        self.assertEqual(
+            expected_msg, actual_msg,
+            msg='Expected {}, but found {}.'.format(expected_msg, actual_msg))
+        expected = np.array([
+            [3150.0125, 6200.669],
+            [4603.398812, 10499.4711]])
+        self.imcs['imc0'].fit(self.data['R'], self.data['X'], self.data['Y'])
+        actual = self.imcs['imc0'].predict_all(
+            self.data['X'], self.data['Y'])
         np.testing.assert_allclose(
             expected, actual, rtol=1e-2, atol=1e-2,
             err_msg='Expected {}, but found {}.'.format(expected, actual))
