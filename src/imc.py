@@ -81,27 +81,47 @@ def _cost_prime(arr, *args):
     return np.concatenate([_h_prime().flatten(), _w_prime().flatten()])
 
 
-
-
-def _fh_hess(H, p, *args):
-    """Return the hessian of the regularized SSE for a given H.
+def _cost_hess(arr, s_vec, *args):
+    """Return the hessian of the regularized SSE for given variables.
 
     Parameters
     ----------
-    H: array-like, shape (n_samples, n_features)
-        Component to minimize the cost function against.
+    arr : array-like, shape (n_samples, )
+        Concatenation of flattened components to minimize.
+
+    s_vec : array-like, shape (n_samples, )
+        Concatenation of arbitrary vectors used to multiply the hessian.
 
     Returns
     -------
-    gh: The hessian of the regularized sum squared error for the given H.
+    The hessian of the regularized sum squared error for the given variables.
 
     """
-    W, X, Y, R, lam, l1_ratio, shape = args
-    S = p.reshape(shape)
-    gh = W.dot(X.T).dot(X).dot(W.T).dot(S).dot(Y.T).dot(Y) +\
-        (1 - l1_ratio) * lam * S
-    return gh.flatten()
+    users, items, _, lam, l1_ratio, h_size, h_shape, w_shape = args
+    h_component = arr[:h_size].reshape(h_shape)
+    w_component = arr[h_size:].reshape(w_shape)
 
+    def _h_hess():
+        s_h = s_vec[:h_size].reshape(h_shape)
+        w_s = w_component.T.dot(s_h)
+        h_diag = np.array([
+            items[i].dot(users[i].dot(w_s).T).T
+            for i in range(users.shape[0])]).flatten()
+        g_h = items.T.dot(diags(h_diag).T.dot(users).dot(w_component.T)).T +\
+            (1 - l1_ratio) * lam * s_h
+        return g_h
+
+    def _w_hess():
+        s_w = s_vec[h_size:].reshape(w_shape)
+        h_s = h_component.T.dot(s_w)
+        w_diag = np.array([
+            users[i].dot(items[i].dot(h_s).T).T
+            for i in range(users.shape[0])]).flatten()
+        g_w = users.T.dot(diags(w_diag).T.dot(items).dot(h_component.T)).T +\
+            (1 - l1_ratio) * lam * s_w
+        return g_w
+
+    return np.concatenate([_h_hess().flatten(), _w_hess().flatten()])
 
 def _fw(W, *args):
     """Return the hessian of the regularized SSE for a given W.
