@@ -431,13 +431,13 @@ class IMC(object):
 
         Parameters
         ----------
-        R : {array-like, sparse matrix}, shape (n_samples, m_features)
+        R : {array-like, sparse matrix}, shape (n_samples, m_samples)
             Data matrix to be decomposed.
 
         X : array, shape (n_samples, p_attributes)
             Attribute matrix for users.
 
-        Y : array, shape (m_features, q_attributes)
+        Y : array, shape (m_samples, q_attributes)
             Attribute matrix for items.
 
         W : array-like, shape (k_components, p_attributes)
@@ -474,16 +474,19 @@ class IMC(object):
 
         Parameters
         ----------
-        R: {array-like, sparse matrix}, shape (n_samples, n_features)
+        R : {array-like, sparse matrix}, shape (n_samples, m_samples)
             Data matrix to be decomposed.
-        X: array, shape (n_samples, p_features)
+
+        X : array, shape (n_samples, p_attributes)
             Attribute matrix for users.
-        Y: array, shape (n_features, q_features)
+
+        Y : array, shape (m_samples, q_attributes)
             Attribute matrix for items.
 
         Returns
         -------
         self
+
         """
         self.fit_transform(R, X, Y)
         return self
