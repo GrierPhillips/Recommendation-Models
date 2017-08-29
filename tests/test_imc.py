@@ -505,3 +505,22 @@ class IMCTest(unittest.TestCase):
         np.testing.assert_allclose(
             expected, actual, rtol=1e-2, atol=1e-2,
             err_msg='Expected {}, but found {}.'.format(expected, actual))
+
+    def test_score(self):
+        """Score method should return the root mean squared error for the reconstructed matrix."""  # noqa
+        with self.assertRaises(NotFittedError) as context:
+            self.imcs['imc0'].score(
+                self.data['R'], self.data['X'], self.data['Y'])
+        expected_msg = "This IMC instance is not fitted yet. Call 'fit' " +\
+            "with appropriate arguments before using this method."
+        actual_msg = str(context.exception)
+        self.assertEqual(
+            expected_msg, actual_msg,
+            msg='Expected {}, but found {}.'.format(expected_msg, actual_msg))
+        self.imcs['imc0'].fit(self.data['R'], self.data['X'], self.data['Y'])
+        expected = 2277.334
+        actual = self.imcs['imc0'].score(
+            self.data['R'], self.data['X'], self.data['Y'])
+        np.testing.assert_allclose(
+            expected, actual, rtol=1e-2,
+            err_msg='Expected {}, but found {}.'.format(expected, actual))
