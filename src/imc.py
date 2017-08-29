@@ -519,6 +519,29 @@ class IMC(object):
             l1_ratio=self.l1_ratio, update_H=False, verbose=self.verbose)
         return W
 
+    def _predict(self, X, Y):
+        """Make predictions for the given attribute arrays.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, p_attributes)
+            Array of user attributes. Each row represents a user.
+
+        Y : array-like, shape (m_samples, q_attributes)
+            Array of item attributes. Each row represents an item.
+
+        Returns
+        -------
+        prediction : {float, array} (n_samples, m_samples)
+            Array of predicted values for the user/items pairs.
+
+        """
+        X = check_array(X, accept_sparse='csr')
+        Y = check_array(Y, accept_sparse='csr')
+        x_w = X.dot(self.components_w.T)
+        h_y = Y.dot(self.components_h.T).T
+        prediction = x_w.dot(h_y)
+        return prediction
 
 
     def predict_one(self):
