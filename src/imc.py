@@ -543,9 +543,27 @@ class IMC(object):
         prediction = x_w.dot(h_y)
         return prediction
 
+    def predict_one(self, X, Y):
+        """Get the prediction for a single user/item pair.
 
-    def predict_one(self):
-        pass
+        Parameters
+        ----------
+        X : array, shape (1, p_attributes)
+            Attribute array for one user.
+
+        Y : array, shape (1, q_attributes)
+            Attribute array for one item.
+
+        Returns
+        -------
+        prediction : float
+            Predicted value for the user/item pair.
+
+        """
+        check_is_fitted(self, 'n_components_')
+        prediction = self._predict(X, Y)
+        return prediction
+
 
     def predict_all(self):
         pass
