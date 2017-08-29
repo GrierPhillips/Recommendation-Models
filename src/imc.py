@@ -491,20 +491,33 @@ class IMC(object):
         self.fit_transform(R, X, Y)
         return self
 
-    def transform(self, R):
-        """Transform the data R according to the fitted IMC model.
+    def transform(self, R, X, Y):
+        """Transform the data R, X, and Y according to the fitted IMC model.
 
         Parameters
         ----------
-        R: {array-like, sparse matrix}, shape (n_samples, n_features)
-            Data matrix to be transformed by the model
+        R : {array-like, sparse matrix}, shape (n_samples, m_samples)
+            Data matrix to be decomposed.
+
+        X : array, shape (n_samples, p_attributes)
+            Attribute matrix for users.
+
+        Y : array, shape (m_samples, q_attributes)
+            Attribute matrix for items.
 
         Returns
         -------
-        W: array, shape (n_components, p_features)
+        W : array, shape (k_components, p_attributes)
             Transformed data. The W component of ``R = XWHY``.
+
         """
         check_is_fitted(self, 'n_components_')
+        R, X, Y = _format_data(R, X, Y)
+        W, _, _, _ = _fit_imc(
+            R, X, Y, W=None, H=self.components_h,
+            n_components=self.n_components_, alpha=self.alpha,
+            l1_ratio=self.l1_ratio, update_H=False, verbose=self.verbose)
+        return W
 
 
 
