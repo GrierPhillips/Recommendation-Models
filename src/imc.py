@@ -375,6 +375,20 @@ def _format_data(R, X, Y):
     return r, x, y
 
 
+def _check_x(X):
+    if isinstance(X, tuple):
+        if len(X) != 2:
+            raise ValueError('Argument X should be a tuple of length 2 '
+                             'containing an array for user attributes and an '
+                             'array for item attributes.')
+        Y = X[1]
+        X = X[0]
+    else:
+        raise TypeError('Type of argument X should be tuple, was {}'
+                        .format(type(X)))
+    return X, Y
+
+
 class IMC(BaseEstimator):
     """Implementation of Inductive Matrix Completion.
 
@@ -429,19 +443,16 @@ class IMC(BaseEstimator):
         self.l1_ratio = l1_ratio
         self.verbose = verbose
 
-    def fit_transform(self, R, X, Y, W=None, H=None):
+    def fit_transform(self, X, y, W=None, H=None):
         """Learn IMC model for given data and return the transformed data.
 
         Parameters
         ----------
-        R : {array-like, sparse matrix}, shape (n_samples, m_samples)
+        X : tuple, len = 2
+            Tuple containing matrices of user attributes and item attributes.
+
+        y : {array-like, sparse matrix}, shape (n_samples, m_samples)
             Data matrix to be decomposed.
-
-        X : array, shape (n_samples, p_attributes)
-            Attribute matrix for users.
-
-        Y : array, shape (m_samples, q_attributes)
-            Attribute matrix for items.
 
         W : array-like, shape (k_components, p_attributes)
             Initial guess for the W component of the IMC solution.
@@ -456,6 +467,8 @@ class IMC(BaseEstimator):
         H : array, shape (min(self.n_components, q_attributes), q_attributes)
 
         """
+        X, Y = _check_x(X)
+        R = y
         if self.n_components and self.n_components < X.shape[1]:
             self.n_components_ = self.n_components
         else:
@@ -469,44 +482,39 @@ class IMC(BaseEstimator):
             warnings.warn(msg, ConvergenceWarning, stacklevel=1)
         self.components_h = H
         self.components_w = W
-        self.reconstruction_err_ = self.score(R, X, Y)
+        self.reconstruction_err_ = self.score((X, Y), R)
         return W, H
 
-    def fit(self, R, X, Y):
+    def fit(self, X, y):
         """Learn IMC model for the data R, with attribute data X and Y.
 
         Parameters
         ----------
-        R : {array-like, sparse matrix}, shape (n_samples, m_samples)
+        X : tuple, len = 2
+            Tuple containing matrices of user attributes and item attributes.
+
+        y : {array-like, sparse matrix}, shape (n_samples, m_samples)
             Data matrix to be decomposed.
-
-        X : array, shape (n_samples, p_attributes)
-            Attribute matrix for users.
-
-        Y : array, shape (m_samples, q_attributes)
-            Attribute matrix for items.
 
         Returns
         -------
         self
 
         """
-        self.fit_transform(R, X, Y)
+        X, Y = _check_x(X)
+        self.fit_transform((X, Y), y)
         return self
 
-    def transform(self, R, X, Y):
+    def transform(self, X, y):
         """Transform the data R, X, and Y according to the fitted IMC model.
 
         Parameters
         ----------
-        R : {array-like, sparse matrix}, shape (n_samples, m_samples)
+        X : tuple, len = 2
+            Tuple containing matrices of user attributes and item attributes.
+
+        y : {array-like, sparse matrix}, shape (n_samples, m_samples)
             Data matrix to be decomposed.
-
-        X : array, shape (n_samples, p_attributes)
-            Attribute matrix for users.
-
-        Y : array, shape (m_samples, q_attributes)
-            Attribute matrix for items.
 
         Returns
         -------
@@ -515,7 +523,8 @@ class IMC(BaseEstimator):
 
         """
         check_is_fitted(self, 'n_components_')
-        R, X, Y = _format_data(R, X, Y)
+        X, Y = _check_x(X)
+        R, X, Y = _format_data(y, X, Y)
         W, _, _, _ = _fit_imc(
             R, X, Y, W=None, H=self.components_h,
             n_components=self.n_components_, alpha=self.alpha,
@@ -546,16 +555,13 @@ class IMC(BaseEstimator):
         prediction = x_w.dot(h_y)
         return prediction
 
-    def predict_one(self, X, Y):
+    def predict_one(self, X):
         """Get the prediction for a single user/item pair.
 
         Parameters
         ----------
-        X : array, shape (1, p_attributes)
-            Attribute array for one user.
-
-        Y : array, shape (1, q_attributes)
-            Attribute array for one item.
+        X : tuple, len = 2
+            Tuple containing matrices of user attributes and item attributes.
 
         Returns
         -------
@@ -564,19 +570,17 @@ class IMC(BaseEstimator):
 
         """
         check_is_fitted(self, 'n_components_')
+        X, Y = _check_x(X)
         prediction = self._predict(X, Y)
         return prediction
 
-    def predict_all(self, X, Y):
+    def predict_all(self, X):
         """Get the predictions for all combinations of user/item pairs.
 
         Parameters
         ----------
-        X : array, shape (n_samples, p_attributes)
-            Attribute array for users.
-
-        Y : array, shape (m_samples, q_attributes)
-            Attribute array items.
+        X : tuple, len = 2
+            Tuple containing matrices of user attributes and item attributes.
 
         Returns
         -------
@@ -585,22 +589,20 @@ class IMC(BaseEstimator):
 
         """
         check_is_fitted(self, 'n_components_')
+        X, Y = _check_x(X)
         predictions = self._predict(X, Y)
         return predictions
 
-    def score(self, true, X, Y):
+    def score(self, X, y):
         """Return the root mean squared error of the reconstructed matrix.
 
         Parameters
         ----------
-        true : {array-like, sparse-matrix}, shape (n_samples, m_samples)
-            The true ratings matrix.
+        X : tuple, len = 2
+            Tuple containing matrices of user attributes and item attributes.
 
-        X : array, shape (n_samples, p_attributes)
-            Attribute array for one user.
-
-        Y : array, shape (m_samples, q_attributes)
-            Attribute array for one item.
+        y : {array-like, sparse matrix}, shape (n_samples, m_samples)
+            Data matrix to be decomposed.
 
         Returns
         -------
@@ -609,10 +611,11 @@ class IMC(BaseEstimator):
 
         """
         check_is_fitted(self, 'n_components_')
-        r, x, y = _format_data(true, X, Y)
+        X, Y = _check_x(X)
+        r, x, y = _format_data(y, X, Y)
         w_h = self.components_w.T.dot(self.components_h)
         x_m = x.dot(w_h)
         preds = np.array([x_m[row].dot(y[row].T) for row in range(x.shape[0])])
         mse = mean_squared_error(r, preds)
         rmse = np.sqrt(mse)
-        return rmse
+        return -rmse
