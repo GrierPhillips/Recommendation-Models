@@ -361,6 +361,8 @@ def _format_data(R, X, Y):
         the index of the rating in r.
 
     """
+    if R.ndim < 2 or R.shape[0] == 1:
+        R = R.reshape(-1, 1)
     R = check_array(R, accept_sparse='csc')
     X = check_array(X, accept_sparse='csc')
     Y = check_array(Y, accept_sparse='csc')
