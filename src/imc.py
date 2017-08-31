@@ -17,6 +17,7 @@ import numpy as np
 from numpy.linalg import norm, svd
 import scipy.optimize as so
 from scipy.sparse import csc_matrix, diags, issparse
+from sklearn.base import BaseEstimator
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.metrics import mean_squared_error
 from sklearn.utils.validation import check_is_fitted, check_array
@@ -372,7 +373,7 @@ def _format_data(R, X, Y):
     return r, x, y
 
 
-class IMC(object):
+class IMC(BaseEstimator):
     """Implementation of Inductive Matrix Completion.
 
     Parameters
