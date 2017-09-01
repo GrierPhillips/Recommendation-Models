@@ -383,10 +383,35 @@ def _check_x(X):
                              'array for item attributes.')
         Y = X[1]
         X = X[0]
+    elif isinstance(X, DataHolder):
+        Y = X.Y
+        X = X.X
     else:
-        raise TypeError('Type of argument X should be tuple, was {}'
-                        .format(type(X)))
+        raise TypeError('Type of argument X should be tuple or DataHolder, was'
+                        ' {}'.format(type(X)))
     return X, Y
+
+
+class DataHolder(object):
+    """Class for packing user and item attributes into sigle data structure.
+
+    Parameters
+    ----------
+    X : array-like, shape (n_samples, p_attributes)
+        Array of user attributes. Each row represents a user.
+
+    Y : array-like, shape (m_samples, q_attributes)
+        Array of item attributes. Each row represents an item.
+
+    """
+
+    def __init__(self, X, Y):
+        self.X = X
+        self.Y = Y
+        self.shape = self.X.shape
+
+    def __getitem__(self, x):
+        return self.X[x], self.Y[x]
 
 
 class IMC(BaseEstimator):
