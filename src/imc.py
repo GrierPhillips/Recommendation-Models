@@ -75,8 +75,8 @@ def _cost_prime(arr, *args):
         h_diag = np.array([
             users[i].dot(y_m[i]) for i in range(users.shape[0])]).flatten()
         x_w = users.dot(w_component.T).T
-        wxr = np.vstack([x_w[i] * ratings for i in range(x_w.shape[0])])
-        g_h = items.T.dot(diags(h_diag).T.dot(x_w.T)) - items.T.dot(wxr.T) +\
+        wxr = np.multiply(x_w, ratings)
+        g_h = items.T.dot(diags(h_diag).dot(x_w.T)) - items.T.dot(wxr.T) +\
             (1 - l1_ratio) * lam * h_component.T + 0.5 * l1_ratio * lam
         return g_h.T
 
@@ -85,8 +85,8 @@ def _cost_prime(arr, *args):
         w_diag = np.array([
             items[i].dot(x_m[i]) for i in range(users.shape[0])]).flatten()
         y_h = items.dot(h_component.T).T
-        hyr = np.vstack([y_h[i] * ratings for i in range(y_h.shape[0])])
-        g_w = users.T.dot(diags(w_diag).T.dot(y_h.T)) - users.T.dot(hyr.T) +\
+        hyr = np.multiply(y_h, ratings)
+        g_w = users.T.dot(diags(w_diag).dot(y_h.T)) - users.T.dot(hyr.T) +\
             (1 - l1_ratio) * lam * w_component.T + 0.5 * l1_ratio * lam
         return g_w.T
 
@@ -119,8 +119,8 @@ def _cost_hess(arr, s_vec, *args):
         h_diag = np.array([
             items[i].dot(users[i].dot(w_s).T).T
             for i in range(users.shape[0])]).flatten()
-        g_h = items.T.dot(diags(h_diag).T.dot(users).dot(w_component.T)).T +\
-            (1 - l1_ratio) * lam * s_h
+        g_h = items.T.dot(diags(h_diag).dot(users).dot(w_component.T)).T +\
+            (1 - l1_ratio) * lam
         return g_h
 
     def _w_hess():
@@ -129,8 +129,8 @@ def _cost_hess(arr, s_vec, *args):
         w_diag = np.array([
             users[i].dot(items[i].dot(h_s).T).T
             for i in range(users.shape[0])]).flatten()
-        g_w = users.T.dot(diags(w_diag).T.dot(items).dot(h_component.T)).T +\
-            (1 - l1_ratio) * lam * s_w
+        g_w = users.T.dot(diags(w_diag).dot(items).dot(h_component.T)).T +\
+            (1 - l1_ratio) * lam
         return g_w
 
     return np.concatenate([_h_hess().flatten(), _w_hess().flatten()])
@@ -210,7 +210,7 @@ def _fw_hess(_, s_vec, *args):
     diag = np.array([
         users[i].dot(yhs[i].T).T for i in range(users.shape[0])]).flatten()
     g_w = users.T.dot(diags(diag).T.dot(items).dot(h_component.T)).T +\
-        (1 - l1_ratio) * lam * s_vec
+        (1 - l1_ratio) * lam
     return g_w.flatten()
 
 
