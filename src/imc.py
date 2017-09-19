@@ -375,32 +375,6 @@ class IMC(BaseEstimator):
         self.fit_transform((X, Y), y)
         return self
 
-    def transform(self, X, y):
-        """Transform the data R, X, and Y according to the fitted IMC model.
-
-        Parameters
-        ----------
-        X : tuple, len = 2
-            Tuple containing matrices of user attributes and item attributes.
-
-        y : {array-like, sparse matrix}, shape (n_samples, m_samples)
-            Data matrix to be decomposed.
-
-        Returns
-        -------
-        W : array, shape (k_components, p_attributes)
-            Transformed data. The W component of ``R = XWHY``.
-
-        """
-        check_is_fitted(self, 'n_components_')
-        X, Y = _check_x(X)
-        R, X, Y = _format_data(y, X, Y)
-        W, _, _, _ = _fit_imc(
-            R, X, Y, W=None, H=self.components_h,
-            n_components=self.n_components_, alpha=self.alpha,
-            l1_ratio=self.l1_ratio, update_H=False, verbose=self.verbose)
-        return W
-
     def _predict(self, X, Y):
         """Make predictions for the given attribute arrays.
 
