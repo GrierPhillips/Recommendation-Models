@@ -188,13 +188,13 @@ def _format_data(R, X, Y):
 
     Parameters
     ----------
-    R : {array-like, sparse matrix}, shape (n_samples, m_features)
+    R : {array-like, sparse matrix}, shape (n_samples, m_samples)
         Data matrix to be decomposed.
 
     X : array, shape (n_samples, p_attributes)
         Attribute matrix for users.
 
-    Y : array, shape (m_features, q_attributes)
+    Y : array, shape (m_samples, q_attributes)
         Attribute matrix for items.
 
     Returns
@@ -318,7 +318,7 @@ class IMC(BaseEstimator):
         self.l1_ratio = l1_ratio
         self.verbose = verbose
 
-    def fit_transform(self, X, y, W=None, H=None):
+    def fit_transform(self, X, y, Z=None):
         """Learn IMC model for given data and return the transformed data.
 
         Parameters
@@ -329,11 +329,8 @@ class IMC(BaseEstimator):
         y : {array-like, sparse matrix}, shape (n_samples, m_samples)
             Data matrix to be decomposed.
 
-        W : array-like, shape (k_components, p_attributes)
-            Initial guess for the W component of the IMC solution.
-
-        H : array-like, shape (k_components, q_attributes)
-            Initial guess for the H component of the IMC solution.
+        Z : array-like, shape (p_attributes, q_attributes)
+            Initial guess for the IMC solution.
 
         Returns
         -------
@@ -349,16 +346,14 @@ class IMC(BaseEstimator):
         else:
             self.n_components_ = X.shape[1]
         r, x, y = _format_data(R, X, Y)
-        W, H, success, msg = _fit_imc(
-            r, x, y, W=W, H=H, n_components=self.n_components_,
-            method=self.method, alpha=self.alpha, l1_ratio=self.l1_ratio,
-            update_H=True, verbose=self.verbose)
+        Z, success, msg = _fit_imc(
+            r, x, y, Z=Z, n_components=self.n_components_, method=self.method,
+            alpha=self.alpha, verbose=self.verbose)
         if not success:
             warnings.warn(msg, ConvergenceWarning, stacklevel=1)
-        self.components_h = H
-        self.components_w = W
+        self.Z = Z
         self.reconstruction_err_ = self.score((X, Y), R)
-        return W, H
+        return Z
 
     def fit(self, X, y):
         """Learn IMC model for the data R, with attribute data X and Y.
@@ -425,9 +420,8 @@ class IMC(BaseEstimator):
         """
         X = check_array(X, accept_sparse='csr')
         Y = check_array(Y, accept_sparse='csr')
-        x_w = X.dot(self.components_w.T)
-        h_y = Y.dot(self.components_h.T).T
-        prediction = x_w.dot(h_y)
+        x_z = X.dot(self.Z)
+        prediction = x_z.dot(Y.T)
         return prediction
 
     def predict_one(self, X):
@@ -488,9 +482,8 @@ class IMC(BaseEstimator):
         check_is_fitted(self, 'n_components_')
         X, Y = _check_x(X)
         r, x, y = _format_data(y, X, Y)
-        w_h = self.components_w.T.dot(self.components_h)
-        x_m = x.dot(w_h)
-        preds = np.array([x_m[row].dot(y[row].T) for row in range(x.shape[0])])
+        x_z = x.dot(self.Z)
+        preds = np.array([x_z[row].dot(y[row].T) for row in range(x.shape[0])])
         mse = mean_squared_error(r, preds)
         rmse = np.sqrt(mse)
         return -rmse
