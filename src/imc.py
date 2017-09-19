@@ -94,12 +94,11 @@ def _cost_hess(_, s_vec, *args):
     return hess_z.ravel()
 
 
-def _fit_imc(R, X, Y, W=None, H=None, method='BFGS', n_components=None,
-             alpha=0.1, l1_ratio=0, update_H=True, verbose=0):
+def _fit_imc(R, X, Y, Z=None, method='BFGS', n_components=None,
+             alpha=0.1, verbose=0):
     """Compute Inductive Matrix Completion (IMC) with AltMin-LRROM.
 
-    The objective function is minimized with an alternating minimization of W
-    and H. Each minimization is calculated by the Newton-CG algorithm.
+    The objective function is minimized by updating Z in the formula R ~ XZY^T.
 
     Parameters
     ----------
@@ -112,10 +111,7 @@ def _fit_imc(R, X, Y, W=None, H=None, method='BFGS', n_components=None,
     Y : array-like, shape (m_samples, q_attributes)
         Constant item attribute matrix.
 
-    W : array-like, shape (k_components, p_attributes)
-        Initial guess for the solution.
-
-    H : array-like, shape (k_components, q_attributes)
+    Z : array-like, shape (p_attributes, q_attributes)
         Initial guess for the solution.
 
     method : None | 'Newton-CG' | 'BFGS'
@@ -128,31 +124,18 @@ def _fit_imc(R, X, Y, W=None, H=None, method='BFGS', n_components=None,
     alpha : double, default: 0.1
         Constant that multiplies the regularization terms.
 
-    l1_ratio : double, default: 0
-        The regularization mixing parameter, with 0 <= l1_ratio <= 1.
-        For l1_ratio = 0 the penalty is an L2 penalty.
-        For l1_ratio = 1 it is an L1 penalty.
-        For 0 < l1_ratio < 1, the penalty is a combination of L1 and L2.
-
-    update_H : boolean, default: True
-        Set to True, both W and H will be estimated from initial guesses.
-        Set to False, only W will be estimated.
-
     verbose : integer, default: 0
         The verbosity level.
 
     Returns
     -------
-    W : array-like, shape (k_components, p_attributes)
-        Solution to the least squares problem.
-
-    H : array-like, shape (k_components, q_attributes)
+    Z : array-like, shape (p_attributes, q_attributes)
         Solution to the least squares problem.
 
     res.success : boolean
         Whether or not the minimization converged.
 
-    res.message :
+    res.message : string
         The message returned by the minimization process.
 
     References
@@ -169,34 +152,21 @@ def _fit_imc(R, X, Y, W=None, H=None, method='BFGS', n_components=None,
         raise ValueError("Number of components must be a positive integer;"
                          " got (n_components=%r)." % n_components)
 
-    if H is None:
-        H = np.zeros((n_components, Y.shape[1]))
-    if W is None:
+    if Z is None:
         sum_x_r_y = diags(R).T.dot(X).T.dot(Y) / R.size
-        u, _, _ = svd(sum_x_r_y, False)
-        W = u.T[:n_components]
+        u, s, v = svd(sum_x_r_y, False)
+        Z = u.dot(np.diag(s)).dot(v)
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', category=RuntimeWarning)
 
-        if update_H:
-            x0 = np.concatenate([H.flatten(), W.flatten()])
-            res = so.minimize(
-                _cost, x0, method=method, jac=_cost_prime, hessp=_cost_hess,
-                args=(X, Y, R, alpha, l1_ratio, H.size, H.shape, W.shape),
-                options={'disp': verbose})
-            H = res['x'][:H.size].reshape(H.shape)
-            W = res['x'][H.size:H.size + W.size].reshape(W.shape)
-        else:
-            _check_init(H, (n_components, Y.shape[1]), 'IMC (Input H)')
-            x0 = W.flatten()
-            res = so.minimize(
-                _fw, x0, args=(H, X, Y, R, alpha, l1_ratio, W.shape),
-                method=method, jac=_fw_prime, hessp=_fw_hess,
-                options={'disp': verbose})
-            W = res['x'].reshape(W.shape)
+        x0 = Z.flatten()
+        res = so.minimize(
+            _cost, x0, method=method, jac=_cost_prime, hessp=_cost_hess,
+            args=(X, Y, R, alpha, Z.shape), options={'disp': verbose})
+        Z = res['x'].reshape(Z.shape)
 
-    return W, H, res.success, res.message
+    return Z, res.success, res.message
 
 
 def _check_init(A, shape, whom):
