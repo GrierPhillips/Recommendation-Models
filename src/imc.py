@@ -32,186 +32,66 @@ def _cost(arr, *args):
     Parameters
     ----------
     arr : array-like, shape (n_samples, )
-        Concatenation of flattened components to minimize.
+        Flattened array to minimize.
 
     Returns
     -------
-    sse : The sum squared error for the given variables.
+    sse : The sum squared error for the given array.
 
     """
-    users, items, ratings, lam, l1_ratio, h_size, h_shape, w_shape = args
-    h_component = arr[:h_size].reshape(h_shape)
-    w_component = arr[h_size:].reshape(w_shape)
-    x_m = users.dot(w_component.T).dot(h_component)
-    preds = np.array([items[i].dot(x_m[i]) for i in range(users.shape[0])])
-    sse = 0.5 * np.sum(
-        (ratings - preds.flatten()) ** 2 +
-        (1 - l1_ratio) * lam * (norm(w_component) + norm(h_component)) +
-        2 * l1_ratio * lam * (norm(w_component, 1) + norm(h_component, 1))
-    )
+    users, items, ratings, lam, shape = args
+    z_arr = arr.reshape(shape)
+    x_z = users.dot(z_arr)
+    preds = np.array([x_z[i].dot(items[i]) for i in range(x_z.shape[0])])
+    sse = 0.5 * np.sum((ratings - preds) ** 2 + lam * norm(z_arr) ** 2)
     return sse
 
 
 def _cost_prime(arr, *args):
-    """Return the gradient of the regularized SSE for given variables.
-
-    Parameters
-    ----------
-    arr: array-like, shape (n_samples, )
-        Concatenation of flattened components to minimize.
-
-    Returns
-    -------
-    The gradient of the regularized sum squared error for the given variables.
-
-    """
-    users, items, ratings, lam, l1_ratio, h_size, h_shape, w_shape = args
-    h_component = arr[:h_size].reshape(h_shape)
-    w_component = arr[h_size:].reshape(w_shape)
-    w_h = w_component.T.dot(h_component)
-
-    def _h_prime():
-        y_m = items.dot(w_h.T)
-        h_diag = np.array([
-            users[i].dot(y_m[i]) for i in range(users.shape[0])]).flatten()
-        x_w = users.dot(w_component.T).T
-        wxr = np.multiply(x_w, ratings)
-        g_h = items.T.dot(diags(h_diag).dot(x_w.T)) - items.T.dot(wxr.T) +\
-            (1 - l1_ratio) * lam * h_component.T + 0.5 * l1_ratio * lam
-        return g_h.T
-
-    def _w_prime():
-        x_m = users.dot(w_h)
-        w_diag = np.array([
-            items[i].dot(x_m[i]) for i in range(users.shape[0])]).flatten()
-        y_h = items.dot(h_component.T).T
-        hyr = np.multiply(y_h, ratings)
-        g_w = users.T.dot(diags(w_diag).dot(y_h.T)) - users.T.dot(hyr.T) +\
-            (1 - l1_ratio) * lam * w_component.T + 0.5 * l1_ratio * lam
-        return g_w.T
-
-    return np.concatenate([_h_prime().flatten(), _w_prime().flatten()])
-
-
-def _cost_hess(arr, s_vec, *args):
-    """Return the hessian of the regularized SSE for given variables.
+    """Return the gradient of the regularized SSE for given array.
 
     Parameters
     ----------
     arr : array-like, shape (n_samples, )
-        Concatenation of flattened components to minimize.
+        Flattened array to minimize.
+
+    Returns
+    -------
+    grad_z : The gradient of the regularized sum squared error for the given array.
+
+    """
+    users, items, ratings, lam, shape = args
+    z_arr = arr.reshape(shape)
+    x_z = users.dot(z_arr)
+    diag = np.array([x_z[i].dot(items[i]) for i in range(x_z.shape[0])])
+    x_r = np.multiply(users.T, ratings)
+    grad_z = users.T.dot(diags(diag).dot(items)) - x_r.dot(items) + lam * z_arr
+    return grad_z.ravel()
+
+
+def _cost_hess(_, s_vec, *args):
+    """Return the hessian of the regularized SSE for given array.
+
+    Parameters
+    ----------
+    arr : array-like, shape (n_samples, )
+        Flattened array to minimize.
 
     s_vec : array-like, shape (n_samples, )
-        Concatenation of arbitrary vectors used to multiply the hessian.
+        Vector used to multiply the hessian.
 
     Returns
     -------
-    The hessian of the regularized sum squared error for the given variables.
+    hess_z : The hessian of the regularized sum squared error for the given
+        array.
 
     """
-    users, items, _, lam, l1_ratio, h_size, h_shape, w_shape = args
-    h_component = arr[:h_size].reshape(h_shape)
-    w_component = arr[h_size:].reshape(w_shape)
-
-    def _h_hess():
-        s_h = s_vec[:h_size].reshape(h_shape)
-        w_s = w_component.T.dot(s_h)
-        h_diag = np.array([
-            items[i].dot(users[i].dot(w_s).T).T
-            for i in range(users.shape[0])]).flatten()
-        g_h = items.T.dot(diags(h_diag).dot(users).dot(w_component.T)).T +\
-            (1 - l1_ratio) * lam
-        return g_h
-
-    def _w_hess():
-        s_w = s_vec[h_size:].reshape(w_shape)
-        h_s = h_component.T.dot(s_w)
-        w_diag = np.array([
-            users[i].dot(items[i].dot(h_s).T).T
-            for i in range(users.shape[0])]).flatten()
-        g_w = users.T.dot(diags(w_diag).dot(items).dot(h_component.T)).T +\
-            (1 - l1_ratio) * lam
-        return g_w
-
-    return np.concatenate([_h_hess().flatten(), _w_hess().flatten()])
-
-
-def _fw(arr, *args):
-    """Return the hessian of the regularized SSE for a given W.
-
-    Parameters
-    ----------
-    arr: array-like, shape (n_samples, )
-        Component to minimize the cost function against.
-
-    Returns
-    -------
-    g_h: The sum squared error for the given H.
-
-    """
-    h_component, users, items, ratings, lam, l1_ratio, shape = args
-    w_component = arr.reshape(shape)
-    w_h = w_component.T.dot(h_component)
-    x_m = users.dot(w_h)
-    preds = np.array([items[i].dot(x_m[i]).T for i in range(users.shape[0])])
-    g_w = 0.5 * np.sum(
-        (ratings - preds.flatten()) ** 2 +
-        (1 - l1_ratio) * lam * (norm(w_component) + norm(h_component)) +
-        2 * l1_ratio * lam * (norm(w_component, 1) + norm(h_component, 1))
-    )
-    return g_w
-
-
-def _fw_prime(arr, *args):
-    """Return the hessian of the regularized SSE for a given array.
-
-    Parameters
-    ----------
-    arr: array-like, shape (n_samples, n_features)
-        Component to minimize the cost function against.
-
-    Returns
-    -------
-    g_w: The gradient of the regularized sum squared error for the given array.
-
-    """
-    h_component, users, items, ratings, lam, l1_ratio, shape = args
-    w_component = arr.reshape(shape)
-    y_m = items.dot(w_component.T.dot(h_component).T)
-    diag = np.array([
-        users[i].dot(y_m[i]) for i in range(users.shape[0])]).flatten()
-    y_h = items.dot(h_component.T).T
-    hyr = np.vstack([y_h[i] * ratings for i in range(y_h.shape[0])])
-    g_w = users.T.dot(diags(diag).T.dot(y_h.T)) - users.T.dot(hyr.T) +\
-        (1 - l1_ratio) * lam * w_component.T + 0.5 * l1_ratio * lam
-    return g_w.T.flatten()
-
-
-def _fw_hess(_, s_vec, *args):
-    """Return the hessian of the regularized SSE for a given array.
-
-    Parameters
-    ----------
-    _ : array-like, shape (n_samples,)
-        Component to minimize the cost function against.
-
-    s_vec : array-like shape (n_samples, )
-        Arbitrary vector to mulitply with hessian.
-
-    Returns
-    -------
-    g_w: The hessian of the regularized sum squared error for the given array.
-
-    """
-    h_component, users, items, _, lam, l1_ratio, shape = args
+    users, items, _, lam, shape = args
     s_vec = s_vec.reshape(shape)
-    h_s = h_component.T.dot(s_vec)
-    yhs = items.dot(h_s)
-    diag = np.array([
-        users[i].dot(yhs[i].T).T for i in range(users.shape[0])]).flatten()
-    g_w = users.T.dot(diags(diag).T.dot(items).dot(h_component.T)).T +\
-        (1 - l1_ratio) * lam
-    return g_w.flatten()
+    x_s = users.dot(s_vec)
+    diag = np.array([x_s[i].dot(items[i]) for i in range(x_s.shape[0])])
+    hess_z = users.T.dot(diags(diag).dot(items)) + lam
+    return hess_z.ravel()
 
 
 def _fit_imc(R, X, Y, W=None, H=None, method='BFGS', n_components=None,
