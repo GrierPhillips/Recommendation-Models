@@ -231,14 +231,17 @@ def _check_x(X):
             raise ValueError('Argument X should be a tuple of length 2 '
                              'containing an array for user attributes and an '
                              'array for item attributes.')
-        Y = X[1]
-        X = X[0]
+        Y = np.array(X[1])
+        X = np.array(X[0])
     elif isinstance(X, DataHolder):
         Y = X.Y
         X = X.X
     else:
         raise TypeError('Type of argument X should be tuple or DataHolder, was'
-                        ' {}'.format(type(X)))
+                        ' {}.'.format(str(type(X)).split("'")[1]))
+    if Y.ndim != 2 or X.ndim != 2:
+        Y = Y.reshape(1, -1)
+        X = X.reshape(1, -1)
     return X, Y
 
 
