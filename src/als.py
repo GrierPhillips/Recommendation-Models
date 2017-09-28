@@ -133,12 +133,12 @@ class ALS(BaseEstimator):
 
     """
 
-    def __init__(self, rank, alpha=0.1, tolerance=0.001, random_state=None,
+    def __init__(self, rank, alpha=0.1, tol=0.001, random_state=None,
                  n_jobs=1, verbose=0):
         """Initialize instance of ALS."""
         self.rank = rank
         self.alpha = alpha
-        self.tol = tolerance
+        self.tol = tol
         self.random_state = random_state
         self.n_jobs = n_jobs
         self.verbose = verbose
