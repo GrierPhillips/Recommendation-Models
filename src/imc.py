@@ -375,28 +375,26 @@ class IMC(BaseEstimator):
 
         """
         X, Y = _check_x(X)
-        self.fit_transform((X, Y), y)
+        _ = self.fit_transform((X, Y), y)
         return self
 
-    def _predict(self, X, Y):
+    def _predict(self, X):
         """Make predictions for the given attribute arrays.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, p_attributes)
-            Array of user attributes. Each row represents a user.
-
-        Y : array-like, shape (m_samples, q_attributes)
-            Array of item attributes. Each row represents an item.
+        X : tuple, len = 2
+            Tuple containing matrices of user attributes and item attributes.
 
         Returns
         -------
-        prediction : {float, array} (n_samples, m_samples)
+        prediction : {float, array}, shape (n_samples, m_samples)
             Array of predicted values for the user/items pairs.
 
         """
-        X = check_array(X, accept_sparse='csr')
-        Y = check_array(Y, accept_sparse='csr')
+        X, Y = _check_x(X)
+        X = check_array(X)
+        Y = check_array(Y)
         x_z = X.dot(self.Z)
         prediction = x_z.dot(Y.T)
         return prediction
@@ -416,8 +414,7 @@ class IMC(BaseEstimator):
 
         """
         check_is_fitted(self, 'n_components_')
-        X, Y = _check_x(X)
-        prediction = self._predict(X, Y)
+        prediction = self._predict(X)
         return prediction
 
     def predict_all(self, X):
@@ -435,8 +432,7 @@ class IMC(BaseEstimator):
 
         """
         check_is_fitted(self, 'n_components_')
-        X, Y = _check_x(X)
-        predictions = self._predict(X, Y)
+        predictions = self._predict(X)
         return predictions
 
     def score(self, X, y):
