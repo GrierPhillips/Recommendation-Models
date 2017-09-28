@@ -6,7 +6,6 @@ from concurrent.futures import (ProcessPoolExecutor, ThreadPoolExecutor,
 from itertools import repeat
 import os
 import pickle
-import sys
 
 import numpy as np
 import scipy.sparse as sps
