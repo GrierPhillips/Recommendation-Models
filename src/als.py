@@ -250,12 +250,10 @@ class ALS(BaseEstimator):
             Array of all predicted values for the given user/item pairs.
 
         """
-        X, Y = _check_x(X)
-        X = check_array(X)
-        Y = check_array(Y)
+        users, items = _check_x(X)
         predictions = np.array([
-            self.user_feats[:, X[i]].T.dot(self.item_feats[:, Y[i]])
-            for i in range(X.shape[0])])
+            self.user_feats[:, users[i]].T.dot(self.item_feats[:, items[i]])
+            for i in range(users.shape[0])])
         return predictions
 
     def predict_one(self, user, item):
@@ -317,9 +315,10 @@ class ALS(BaseEstimator):
 
         """
         check_is_fitted(self, ['item_feats', 'user_feats'])
+        users, items, y = _format_data(X, y)
         pred = np.array([
-            self.user_feats[:, X[i][0]].T.dot(self.item_feats[:, X[i][1]])
-            for i in range(X.shape[0])])
+            self.user_feats[:, users[i]].T.dot(self.item_feats[:, items[i]])
+            for i in range(users.shape[0])])
         rmse = -root_mean_squared_error(y, pred)
         return rmse
 
