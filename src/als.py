@@ -202,6 +202,9 @@ class ALS(BaseEstimator):
             The array of latent item features.
 
         """
+        if (y.ndim < 2 or y.shape[0] == 1) and not shape:
+            raise ValueError('When y is a scalar or 1-D array shape must be' +
+                             'provided.')
         users, items, vals = _format_data(X, y)
         if not sps.issparse(y):
             data = sps.lil_matrix(shape)
