@@ -202,6 +202,14 @@ class ALS(BaseEstimator):
             The array of latent item features.
 
         """
+        users, items, vals = _format_data(X, y)
+        if not sps.issparse(y):
+            data = sps.lil_matrix(shape)
+            for idx, (i, j) in enumerate(zip(users, items)):
+                data[i, j] = vals[idx]
+            data = data.tocsr()
+        else:
+            data = y.tocsr()
         random_state = check_random_state(self.random_state)
         with open('random.pkl', 'wb') as state:
             pickle.dump(random_state.get_state(), state)
@@ -221,11 +229,8 @@ class ALS(BaseEstimator):
             self.item_feats = loader['item']
         for _file in ['data.npz', 'features.npz', 'random.pkl']:
             os.remove(_file)
-        self.data = data
-        users, items = self.data.nonzero()
-        X = np.hstack((users.reshape(-1, 1), items.reshape(-1, 1)))
-        y = self.data[users, items].A1
-        self.reconstruction_err_ = self.score(X, y)
+        self.data = vals
+        self.reconstruction_err_ = self.score(X, vals)
         return self.user_feats, self.item_feats
 
     def _predict(self, X):
