@@ -57,9 +57,6 @@ def _check_x(X):
     else:
         raise TypeError('Type of argument X should be tuple or DataHolder, was'
                         ' {}.'.format(str(type(X)).split("'")[1]))
-    if Y.ndim != 2 or X.ndim != 2:
-        Y = Y.reshape(1, -1)
-        X = X.reshape(1, -1)
     return X, Y
 
 
@@ -85,6 +82,32 @@ class DataHolder(object):
     def __getitem__(self, x):
         """Return a tuple of the requested index for both X and Y."""
         return self.X[x], self.Y[x]
+
+
+def _format_data(X, y):
+    """Ensure X is structured properly for ALS.
+
+    The ALS is fit by utilizing a 1-d array of ratings, shape (n, ). This
+    method ensures that when data is passed in as a matrix it will be
+    properly formatted.
+
+    Parameters
+    ----------
+    X : {array-like, sparse matrix}, shape (n_samples, m_samples)
+        Data matrix to be decomposed.
+
+    Returns
+    -------
+    x : array, shape (x_samples, )
+        Array of actual data.
+
+    """
+    if sps.issparse(y):
+        y = y.data
+    elif y.ndim < 2 or y.shape[0] == 1:
+        y = y.reshape(-1, 1)
+    users, items = _check_x(X)
+    return users, items, y
 
 
 class ALS(BaseEstimator):
@@ -179,7 +202,6 @@ class ALS(BaseEstimator):
             The array of latent item features.
 
         """
-        data = check_array(X, accept_sparse='csr')
         random_state = check_random_state(self.random_state)
         with open('random.pkl', 'wb') as state:
             pickle.dump(random_state.get_state(), state)
