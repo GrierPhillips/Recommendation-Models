@@ -342,6 +342,7 @@ class ALS(BaseEstimator):
             The value assigned to item by user.
 
         """
+        check_is_fitted(self, ['item_feats', 'user_feats'])
         self.data[user, item] = rating
         submat = self.item_feats[:, self.data[user].indices]
         row = self.data[user].data
@@ -363,11 +364,11 @@ class ALS(BaseEstimator):
             The index for the user.
 
         """
+        check_is_fitted(self, ['item_feats', 'user_feats'])
         shape = self.data._shape
         if user_id >= shape[0]:
-            shape = (shape[0] + 1, shape[1])
-        self.data.indptr = np.hstack(
-            (self.data.indptr, self.data.indptr[-1]))
+            self.data = sps.vstack([self.data, sps.csr_matrix((1, shape[1]))],
+                                   format='csr')
         if user_id >= self.user_feats.shape[1]:
             new_col = np.zeros((self.rank, 1))
             self.user_feats = np.hstack((self.user_feats, new_col))
