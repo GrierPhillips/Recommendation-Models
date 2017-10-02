@@ -16,7 +16,7 @@ import warnings
 import numpy as np
 from numpy.linalg import norm, svd
 import scipy.optimize as so
-from scipy.sparse import csc_matrix, diags, issparse
+from scipy.sparse import csr_matrix, diags, issparse
 from sklearn.base import BaseEstimator
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.metrics import mean_squared_error
@@ -213,13 +213,13 @@ def _format_data(R, X, Y):
     """
     if R.ndim < 2 or R.shape[0] == 1:
         R = R.reshape(-1, 1)
-    R = check_array(R, accept_sparse='csc')
-    X = check_array(X, accept_sparse='csc')
-    Y = check_array(Y, accept_sparse='csc')
+    R = check_array(R, accept_sparse='csr')
+    X = check_array(X)
+    Y = check_array(Y)
     if not issparse(R):
-        R = csc_matrix(R)
+        R = csr_matrix(R)
     rows, cols = R.nonzero()
-    r = np.array(R[rows, cols]).flatten()
+    r = R.data
     x = X[rows]
     y = Y[rows]
     return r, x, y
