@@ -47,8 +47,8 @@ def _check_x(X):
     if isinstance(X, tuple):
         if len(X) != 2:
             raise ValueError('Argument X should be a tuple of length 2 '
-                             'containing an array for user attributes and an '
-                             'array for item attributes.')
+                             'containing an array for user indices and an '
+                             'array for item indices.')
         Y = np.array(X[1])
         X = np.array(X[0])
     elif isinstance(X, DataHolder):
@@ -165,33 +165,42 @@ class ALS(BaseEstimator):
         self.random_state = random_state
         self.n_jobs = n_jobs
         self.verbose = verbose
-        self.data = None
-        self.item_feats = None
-        self.user_feats = None
 
-    def fit(self, X):
+    def fit(self, X, y, shape=None):
         """Fit the model to the given data.
 
         Parameters
         ----------
-        X : {array-like, sparse matrix} shape (n_samples, m_samlpes)
-            Constant matrix representing the data to be modeled.
+        X : tuple, DataHolder
+            Structure containing arrays of user indices and item indices.
+
+        y : {array-like, sparse matrix}
+            1-D array or sparse matrix representing the data to be modeled.
+
+        shape : tuple or None, (default=None)
+            If y is a 1-D array shape must be the shape of the real data.
 
         Returns
         -------
         self
 
         """
-        _, _ = self.fit_transform(X)
+        _, _ = self.fit_transform(X, y, shape=shape)
         return self
 
-    def fit_transform(self, X):
+    def fit_transform(self, X, y, shape=None):
         """Fit the model to the given data.
 
         Parameters
         ----------
-        X : {array-like, sparse matrix}, shape (n_samples, m_samples)
-            Constant matrix representing the data to be modeled.
+        X : tuple, DataHolder
+            Structure containing arrays of user indices and item indices.
+
+        y : {array-like, sparse matrix}
+            1-D array or sparse matrix representing the data to be modeled.
+
+        shape : tuple or None, (default=None)
+            If y is a 1-D array shape must be the shape of the real data.
 
         Returns
         -------
@@ -241,8 +250,8 @@ class ALS(BaseEstimator):
 
         Parameters
         ----------
-        X : tuple, len = 2
-            Tuple containing arrays of user indices and item indices.
+        X : tuple, DataHolder
+            Structure containing arrays of user indices and item indices.
 
         Returns
         -------
@@ -302,10 +311,10 @@ class ALS(BaseEstimator):
 
         Parameters
         ----------
-        X : array-like
-            Array containing row and column values for predictions.
-        y : array-like
-            The true values.
+        X : tuple, DataHolder
+            Structure containing row and column values for predictions.
+        y : {array-like, sparse matrix}
+            The true values as a 1-D array or stored in a sparse matrix.
 
         Returns
         -------
