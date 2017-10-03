@@ -16,11 +16,12 @@ import warnings
 import numpy as np
 from numpy.linalg import norm, svd
 import scipy.optimize as so
-from scipy.sparse import csr_matrix, diags, issparse
+from scipy.sparse import diags
 from sklearn.base import BaseEstimator
 from sklearn.exceptions import ConvergenceWarning
-from sklearn.metrics import mean_squared_error
-from sklearn.utils.validation import check_is_fitted, check_array
+from sklearn.utils.validation import check_is_fitted
+
+from .utils import _format_data, root_mean_squared_error
 
 
 INTEGER_TYPES = (numbers.Integral, np.integer)
@@ -169,104 +170,6 @@ def _fit_imc(R, X, Y, Z=None, method='BFGS', n_components=None,
     return Z, res.success, res.message
 
 
-def _check_init(A, shape, whom):
-    if np.shape(A) != shape:
-        raise ValueError('Array with wrong shape passed to {}. Expected {}, '
-                         'but got {}.'.format(whom, shape, np.shape(A)))
-    if np.max(A) == 0:
-        raise ValueError('Array passed to {} is full of zeros.'.format(whom))
-
-
-def _format_data(R, X, Y):
-    """Ensure R, X, and Y are structured properly for IMC.
-
-    The IMC is fit by utilizing a 1-d array of ratings, shape (n, ), and
-    2-d arrays of user and item attributes, shape (n, p) and (n, q)
-    respectively. This method ensures that when data is passed in as
-    matrices of unique users and items or with a matrix of ratings, will be
-    properly formatted.
-
-    Parameters
-    ----------
-    R : {array-like, sparse matrix}, shape (n_samples, m_samples)
-        Data matrix to be decomposed.
-
-    X : array, shape (n_samples, p_attributes)
-        Attribute matrix for users.
-
-    Y : array, shape (m_samples, q_attributes)
-        Attribute matrix for items.
-
-    Returns
-    -------
-    r : array, shape (x_samples, )
-        Array of actual ratings.
-
-    x : array, shape (x_samples, p_attributes)
-        Array of user attributes. The row index of the array corresponds to
-        the index of the rating in r.
-
-    y : array, shape (x_samples, q_attributes)
-        Array of item attributes. The row index of the array corresponds to
-        the index of the rating in r.
-
-    """
-    if R.ndim < 2 or R.shape[0] == 1:
-        R = R.reshape(-1, 1)
-    R = check_array(R, accept_sparse='csr')
-    X = check_array(X)
-    Y = check_array(Y)
-    if not issparse(R):
-        R = csr_matrix(R)
-    rows, cols = R.nonzero()
-    r = R.data
-    x = X[rows]
-    y = Y[rows]
-    return r, x, y
-
-
-def _check_x(X):
-    if isinstance(X, tuple):
-        if len(X) != 2:
-            raise ValueError('Argument X should be a tuple of length 2 '
-                             'containing an array for user attributes and an '
-                             'array for item attributes.')
-        Y = np.array(X[1])
-        X = np.array(X[0])
-    elif isinstance(X, DataHolder):
-        Y = X.Y
-        X = X.X
-    else:
-        raise TypeError('Type of argument X should be tuple or DataHolder, was'
-                        ' {}.'.format(str(type(X)).split("'")[1]))
-    if Y.ndim != 2 or X.ndim != 2:
-        Y = Y.reshape(1, -1)
-        X = X.reshape(1, -1)
-    return X, Y
-
-
-class DataHolder(object):
-    """Class for packing user and item attributes into sigle data structure.
-
-    Parameters
-    ----------
-    X : array-like, shape (n_samples, p_attributes)
-        Array of user attributes. Each row represents a user.
-
-    Y : array-like, shape (m_samples, q_attributes)
-        Array of item attributes. Each row represents an item.
-
-    """
-
-    def __init__(self, X, Y):
-        self.X = X
-        self.Y = Y
-        self.shape = self.X.shape
-
-    def __getitem__(self, x):
-        return self.X[x], self.Y[x]
-
-
 class IMC(BaseEstimator):
     """Implementation of Inductive Matrix Completion.
 
@@ -342,20 +245,18 @@ class IMC(BaseEstimator):
         H : array, shape (min(self.n_components, q_attributes), q_attributes)
 
         """
-        X, Y = _check_x(X)
-        R = y
-        if self.n_components and self.n_components < X.shape[1]:
+        x, y_, r = _format_data(X, y)
+        if self.n_components and self.n_components < x.shape[1]:
             self.n_components_ = self.n_components
         else:
-            self.n_components_ = X.shape[1]
-        r, x, y = _format_data(R, X, Y)
+            self.n_components_ = x.shape[1]
         Z, success, msg = _fit_imc(
-            r, x, y, Z=Z, n_components=self.n_components_, method=self.method,
+            x, y_, r, Z=Z, n_components=self.n_components_, method=self.method,
             alpha=self.alpha, verbose=self.verbose)
         if not success:
             warnings.warn(msg, ConvergenceWarning, stacklevel=1)
         self.Z = Z
-        self.reconstruction_err_ = self.score((X, Y), R)
+        self.reconstruction_err_ = self.score(X, y)
         return Z
 
     def fit(self, X, y):
@@ -374,8 +275,7 @@ class IMC(BaseEstimator):
         self
 
         """
-        X, Y = _check_x(X)
-        _ = self.fit_transform((X, Y), y)
+        _ = self.fit_transform(X, y, Z=Z)
         return self
 
     def _predict(self, X):
@@ -392,9 +292,7 @@ class IMC(BaseEstimator):
             Array of predicted values for the user/items pairs.
 
         """
-        X, Y = _check_x(X)
-        X = check_array(X)
-        Y = check_array(Y)
+        X, Y = _format_data(X)
         x_z = X.dot(self.Z)
         prediction = x_z.dot(Y.T)
         return prediction
@@ -453,10 +351,8 @@ class IMC(BaseEstimator):
 
         """
         check_is_fitted(self, 'n_components_')
-        X, Y = _check_x(X)
-        r, x, y = _format_data(y, X, Y)
+        x, y_, r = _format_data(X, y)
         x_z = x.dot(self.Z)
-        preds = np.array([x_z[row].dot(y[row].T) for row in range(x.shape[0])])
-        mse = mean_squared_error(r, preds)
-        rmse = np.sqrt(mse)
+        preds = np.array([x_z[row].dot(y_[row]) for row in range(x.shape[0])])
+        rmse = -root_mean_squared_error(r, preds)
         return -rmse

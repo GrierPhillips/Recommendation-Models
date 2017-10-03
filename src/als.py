@@ -259,10 +259,11 @@ class ALS(BaseEstimator):
             Array of all predicted values for the given user/item pairs.
 
         """
-        users, items = _check_x(X)
-        predictions = np.array([
-            self.user_feats[:, users[i]].T.dot(self.item_feats[:, items[i]])
-            for i in range(users.shape[0])])
+        check_is_fitted(self, ['item_feats', 'user_feats'])
+        users, items = _format_data(X)
+        U = self.user_feats.T[users]
+        V = self.item_feats.T[items]
+        predictions = (U * V).sum(-1)
         return predictions
 
     def predict_one(self, user, item):
@@ -286,7 +287,7 @@ class ALS(BaseEstimator):
             Predicted value at index user, item in original data.
 
         """
-        prediction = self.user_feats.T[user].dot(self.item_feats[:, item])
+        prediction = self._predict((np.array([user]), np.array([item])))
         return prediction
 
     def predict_all(self, user):
