@@ -15,99 +15,11 @@ import subprocess
 import numpy as np
 import scipy.sparse as sps
 from sklearn.base import BaseEstimator
-from sklearn.metrics import mean_squared_error
-from sklearn.utils.validation import (check_array, check_is_fitted,
-                                      check_random_state)
+from sklearn.utils.validation import check_is_fitted, check_random_state
 
+from .utils import _format_data, root_mean_squared_error
 
 # pylint: disable=E1101,W0212
-
-
-def root_mean_squared_error(true, pred):
-    """Calculate the root mean sqaured error.
-
-    Parameters
-    ----------
-        true : array, shape (n_samples)
-            Array of true values.
-        pred : array, shape (n_samples)
-            Array of predicted values.
-    Returns
-    -------
-        rmse : float
-            Root mean squared error for the given values.
-
-    """
-    mse = mean_squared_error(true, pred)
-    rmse = np.sqrt(mse)
-    return rmse
-
-
-def _check_x(X):
-    if isinstance(X, tuple):
-        if len(X) != 2:
-            raise ValueError('Argument X should be a tuple of length 2 '
-                             'containing an array for user indices and an '
-                             'array for item indices.')
-        Y = np.array(X[1])
-        X = np.array(X[0])
-    elif isinstance(X, DataHolder):
-        Y = X.Y
-        X = X.X
-    else:
-        raise TypeError('Type of argument X should be tuple or DataHolder, was'
-                        ' {}.'.format(str(type(X)).split("'")[1]))
-    return X, Y
-
-
-class DataHolder(object):
-    """Class for packing user and item attributes into sigle data structure.
-
-    Parameters
-    ----------
-    X : array-like, shape (n_samples, p_attributes)
-        Array of user attributes. Each row represents a user.
-
-    Y : array-like, shape (m_samples, q_attributes)
-        Array of item attributes. Each row represents an item.
-
-    """
-
-    def __init__(self, X, Y):
-        """Initialize instance of DataHolder."""
-        self.X = X
-        self.Y = Y
-        self.shape = self.X.shape
-
-    def __getitem__(self, x):
-        """Return a tuple of the requested index for both X and Y."""
-        return self.X[x], self.Y[x]
-
-
-def _format_data(X, y):
-    """Ensure X is structured properly for ALS.
-
-    The ALS is fit by utilizing a 1-d array of ratings, shape (n, ). This
-    method ensures that when data is passed in as a matrix it will be
-    properly formatted.
-
-    Parameters
-    ----------
-    X : {array-like, sparse matrix}, shape (n_samples, m_samples)
-        Data matrix to be decomposed.
-
-    Returns
-    -------
-    x : array, shape (x_samples, )
-        Array of actual data.
-
-    """
-    if sps.issparse(y):
-        y = y.data
-    elif y.ndim < 2 or y.shape[0] == 1:
-        y = y.reshape(-1, 1)
-    users, items = _check_x(X)
-    return users, items, y
 
 
 class ALS(BaseEstimator):
@@ -115,14 +27,14 @@ class ALS(BaseEstimator):
 
     Parameters
     ----------
-    rank : integer
+    rank : integer (default=10)
         The number of latent features (rank) to include in the matrix
         factorization.
 
     alpha : float, optional (default=0.1)
         Float representing the regularization penalty.
 
-    tolerance : float, optional (default=0.1)
+    tol : float, optional (default=0.1)
         Float representing the difference in RMSE between iterations at which
         to stop factorization.
 
@@ -141,7 +53,7 @@ class ALS(BaseEstimator):
 
     Attributes
     ----------
-    ratings : {array-like, sparse matrix} shape (n_samples, m_samples)
+    data : {array-like, sparse matrix} shape (n_samples, m_samples)
         Constant matrix representing the data to be modeled.
 
     item_features : array-like, shape (k_features, m_samples)
@@ -154,9 +66,13 @@ class ALS(BaseEstimator):
         contained in the data. Contains the latent features of users extracted
         by the factorization process.
 
+    reconstruction_err_ : float
+        The sum squared error between the values predicted by the model and the
+        real values of the training data.
+
     """
 
-    def __init__(self, rank, alpha=0.1, tol=0.001, random_state=None,
+    def __init__(self, rank=10, alpha=0.1, tol=0.001, random_state=None,
                  n_jobs=1, verbose=0):
         """Initialize instance of ALS."""
         self.rank = rank
@@ -241,8 +157,8 @@ class ALS(BaseEstimator):
             self.item_feats = loader['item']
         for _file in ['data.npz', 'features.npz', 'random.pkl']:
             os.remove(_file)
-        self.data = vals
-        self.reconstruction_err_ = self.score(X, vals)
+        self.data = data
+        self.reconstruction_err_ = self.score(X, y)
         return self.user_feats, self.item_feats
 
     def _predict(self, X):
@@ -304,7 +220,9 @@ class ALS(BaseEstimator):
             Array containing predicted values of all items for the given user.
 
         """
-        predictions = self.user_feats.T[user].dot(self.item_feats)
+        users = np.repeat(user, self.data.shape[1])
+        items = np.arange(self.data.shape[1])
+        predictions = self._predict((users, items))
         return predictions
 
     def score(self, X, y):
