@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """Functions for multiprocessing of ALS-wr algorithm."""
 
 import argparse
