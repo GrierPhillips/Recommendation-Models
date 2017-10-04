@@ -267,7 +267,7 @@ class IMCTest(unittest.TestCase):
         self.assertEqual(
             expected_msg, actual_msg,
             msg='Expected {}, but found {}.'.format(expected_msg, actual_msg))
-        expected = np.array([[3148.68804665]])
+        expected = 301.06449075427315
         self.imcs['imc0'].fit((self.data['X'], self.data['Y']), self.data['R'])
         actual = self.imcs['imc0'].predict_one(
             (self.data['X'][0], self.data['Y'][0]))
@@ -277,10 +277,10 @@ class IMCTest(unittest.TestCase):
 
     def test_predict(self):
         """The _predict method should return the predicted ratings for all given user/item pairs."""  # noqa
-        expected = np.array([[3148.68804665]])
+        expected = 301.06449075427315
         self.imcs['imc0'].fit((self.data['X'], self.data['Y']), self.data['R'])
         actual = self.imcs['imc0']._predict(
-            self.data['X'][[0]], self.data['Y'][[0]])
+            (self.data['X'][[0]], self.data['Y'][[0]]))
         np.testing.assert_allclose(
             expected, actual,
             err_msg='Expected {}, but found {}.'.format(expected, actual))
@@ -288,8 +288,8 @@ class IMCTest(unittest.TestCase):
     def test_predict_all(self):
         """The predict_all method should call the _predict method with the given user/item pairs."""  # noqa
         expected = np.array([
-            [3148.68804665, 787.17201166],
-            [2623.90670554, 10495.62682216]])
+            [301.06449075, 5994.73915285],
+            [8994.67063528, 11991.34151006]])
         self.imcs['imc0'].fit((self.data['X'], self.data['Y']), self.data['R'])
         actual = self.imcs['imc0'].predict_all(
             (self.data['X'], self.data['Y']))
