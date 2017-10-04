@@ -95,7 +95,7 @@ def _cost_hess(_, s_vec, *args):
     return hess_z.ravel()
 
 
-def _fit_imc(R, X, Y, Z=None, method='BFGS', n_components=None,
+def _fit_imc(X, Y, R, Z=None, method='Newton-CG', n_components=None,
              alpha=0.1, verbose=0):
     """Compute Inductive Matrix Completion (IMC) with AltMin-LRROM.
 
@@ -115,17 +115,16 @@ def _fit_imc(R, X, Y, Z=None, method='BFGS', n_components=None,
     Z : array-like, shape (p_attributes, q_attributes)
         Initial guess for the solution.
 
-    method : None | 'Newton-CG' | 'BFGS'
+    method : None | 'Newton-CG' | 'BFGS' (default='Newton-CG')
         Algorithm used to find W and H that minimize the cost function.
-        Default: 'BFGS'
 
     n_components : int
         Number of components.
 
-    alpha : double, default: 0.1
+    alpha : double (default=0.1)
         Constant that multiplies the regularization terms.
 
-    verbose : integer, default: 0
+    verbose : integer (default=0)
         The verbosity level.
 
     Returns
@@ -180,52 +179,45 @@ class IMC(BaseEstimator):
         number of features in the item attributes matrix, all features are
         kept.
 
-    method : None | 'Newton-CG' | 'BFGS'
+    method : None | 'Newton-CG' | 'BFGS' (default='Newton-CG')
         Algorithm used to find W and H that minimize the cost function.
-        Default: 'BFGS'
 
-    alpha : double, default: 0.1
+    alpha : double (default=0.1)
         Constant that multiplies the regularization terms. Set to zero to have
         no regularization.
 
-    l1_ratio : double, default: 0
+    l1_ratio : double (default=0)
         The regularization mixing parameter, with 0 <= l1_ratio <= 1.
         For l1_ratio = 0 the penalty is an elementwise L2 penalty
         (aka Frobenius Norm).
         For l1_ratio = 1 it is an elementwise L1 penalty.
         For 0 < l1_ratio < 1, the penalty is a combination of L1 and L2.
 
-    verbose : int, default: 0
+    verbose : int (default=0)
         The verbosity level.
 
     Attributes
     ----------
-    components_h : array, [n_components, q_attributes]
-        H component of the data. This is the H matrix in the formula:
-        ``R ~= XWHY``.
+    Z : array, shape (p_attributes, q_attributes)
+        IMC decomposition of the data. This is the Z matrix in the formula:
+        ``R ~= XZY``.
 
-    components_w : array, [n_components, p_attributes]
-        W component of the data. This is the W matrix in the formula:
-        ``R ~= XWHY``.
-
-    reconstruction_err_ : number
-        Frobenius norm of the matrix difference between the training data and
-        the reconstructed data from the fit produced by the model.
-        ``|| R - XWHY ||_2``
+    reconstruction_err_ : float
+        The sum squared error between the values predicted by the model and the
+        real values of the training data.
 
     """
 
-    def __init__(self, n_components=None, method='BFGS', alpha=0.1, l1_ratio=0,
+    def __init__(self, n_components=None, method='Newton-CG', alpha=0.1,
                  verbose=0):
         """Initialize instance of IMC."""
         self.n_components = n_components
         self.method = method
         self.alpha = alpha
-        self.l1_ratio = l1_ratio
         self.verbose = verbose
 
     def fit_transform(self, X, y, Z=None):
-        """Learn IMC model for given data and return the transformed data.
+        """Learn IMC model for given data and return decomposition.
 
         Parameters
         ----------
@@ -259,7 +251,7 @@ class IMC(BaseEstimator):
         self.reconstruction_err_ = self.score(X, y)
         return Z
 
-    def fit(self, X, y):
+    def fit(self, X, y, Z=None):
         """Learn IMC model for the data R, with attribute data X and Y.
 
         Parameters
@@ -269,6 +261,9 @@ class IMC(BaseEstimator):
 
         y : {array-like, sparse matrix}, shape (n_samples, m_samples)
             Data matrix to be decomposed.
+
+        Z : array-like, shape (p_attributes, q_attributes)
+            Initial guess for the IMC solution.
 
         Returns
         -------
