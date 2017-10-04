@@ -61,7 +61,7 @@ class IMCTest(unittest.TestCase):
     def test_cost_prime(self):
         """The _cost_prime function should return the gradient of the regularized sum squared error with respect to W and H."""  # noqa
         expected = np.array(
-            [-6300, 0, 0, 0, 0, 0, -6300, 0, 0, 0])
+            [-300, 0, 0, 0, -6000, 0, -300, 0, -6000, 0])
         actual = _cost_prime(self.input_cost, *self.args)[:10]
         np.testing.assert_allclose(
             expected, actual,
@@ -70,7 +70,8 @@ class IMCTest(unittest.TestCase):
     def test_cost_hess(self):
         """The _cost_hess function should return the hessian of the regularized sum squared error with respect to W and H."""  # noqa
         expected = np.array(
-            [3096.01, 0.01, 0.01, 0.01, 0.01, 0.01, 3096.01, 0.01, 0.01, 0.01])
+            [1.54801e3, 0.01, 0.01, 0.01, 1.56001e3, 0.01, 1.54801e3, 0.01,
+             1.56001e3, 0.01])
         hess_p = np.arange(300)
         actual = _cost_hess(
             self.input_cost, hess_p, *self.args)[:10]
@@ -91,108 +92,47 @@ class IMCTest(unittest.TestCase):
             expected_msg, actual_msg,
             msg='Expected {}, but found {}.'.format(expected_msg, actual_msg))
         expected_msg = (
-            'Optimization terminated successfully.'
+            'Warning: Desired error not necessarily achieved due to precision'
+            ' loss.'
         )
         expected = np.array(
-            [261.41078838, -8.549312e-13, -7.525747e-29, -3.157136e-62,
-             3.585063e-13, -3.2061835e-92, 261.41078838, 3.2943254e-125,
-             3.585063e-13, -3.58996873e-158])
+            [-1.04576367e2, -1.35697449e-3, -1.35697449e-3, -1.35697449e-3,
+             5.21791002e2, -1.35697449e-3, -1.04576367e2, -1.35697449e-3,
+             5.21791002e2, -1.35697449e-3])
         _, succ, msg = _fit_imc(
-            self.data['r'], self.data['x'], self.data['y'], verbose=1)
+            self.data['x'], self.data['y'], self.data['r'], verbose=1)
         actual_msg = sys.stdout.getvalue().split('\n')[0]
         self.assertEqual(
             expected_msg, actual_msg,
             msg='Expected {}, but found {}.'.format(expected_msg, actual_msg))
         self.assertEqual(
-            True, succ,
-            msg='Expected {}, but found {}.'.format(True, succ))
+            False, succ,
+            msg='Expected {}, but found {}.'.format(False, succ))
         self.assertEqual(
             expected_msg, msg,
             msg='Expected {}, but found {}.'.format(expected_msg, msg))
         actual, succ, msg = _fit_imc(
-            self.data['r'], self.data['x'], self.data['y'])
+            self.data['x'], self.data['y'], self.data['r'])
         actual = actual[0, :10]
         np.testing.assert_allclose(
             actual, expected,
             err_msg='Expected {}, but found {}.'.format(expected, actual))
 
-    def test_check_init(self):
-        """The _check_init function should check to ensure that an array has a specified shape and is not all zeros, raising an error if not."""  # noqa
-        with self.assertRaises(ValueError) as context:
-            _check_init(self.data['H'], (3, 4), 'Check Init')
-        expected_msgs = [
-            'Array with wrong shape passed to Check Init. Expected (3, 4), ' +
-            'but got (2, 20).',
-            'Array passed to Check Init is full of zeros.']
-        self.assertEqual(
-            expected_msgs[0], str(context.exception),
-            msg='Expected {}, but found {}.'.format(
-                expected_msgs[0], context.exception))
-        with self.assertRaises(ValueError) as context:
-            _check_init(np.array([0, 0, 0]), (3, ), 'Check Init')
-        self.assertEqual(
-            expected_msgs[1], str(context.exception),
-            msg='Expected {}, but found {}.'.format(
-                expected_msgs[1], context.exception))
-
-    def test_format_data(self):
-        """The _format_data function should take in arrays for ratings, user attributes, and item attributes and return a 1-d array of ratings and 2-d arrays of attributes organized by the index of the rating."""  # noqa
-        r_h, x_h, y_h = _format_data(
-            self.data['R'], self.data['X'], self.data['Y'])
-        self.assertEqual(
-            r_h.shape, (4, ),
-            msg='Expected {}, but found {}.'.format(r_h.shape, (4, )))
-        self.assertEqual(
-            x_h.shape, (4, 15),
-            msg='Expected {}, but found {}.'.format(x_h.shape, (4, 3)))
-        self.assertEqual(
-            y_h.shape, (4, 20),
-            msg='Expected {}, but found {}.'.format(y_h.shape, (4, 4)))
-
-    def test_check_x(self):
-        """The _check_x function should ensure that the passed object is either a tuple or a DataHolder and output correctly formatted data for use by the predict for fit methods."""  # noqa
-        with self.assertRaises(TypeError) as context:
-            _check_x(self.data['X'])
-        expected_msg = "Type of argument X should be tuple or DataHolder, " +\
-            "was numpy.ndarray."
-        actual_msg = str(context.exception)
-        self.assertEqual(
-            expected_msg, actual_msg,
-            msg='Expected {}, but found {}.'.format(expected_msg, actual_msg))
-        with self.assertRaises(ValueError) as context:
-            _check_x((self.data['X'], ))
-        expected_msg = 'Argument X should be a tuple of length 2 containing' +\
-            ' an array for user attributes and an array for item attributes.'
-        actual_msg = str(context.exception)
-        self.assertEqual(
-            expected_msg, actual_msg,
-            msg='Expected {}, but found {}.'.format(expected_msg, actual_msg))
-        holder = DataHolder(self.data['X'], self.data['Y'])
-        actual_x, actual_y = _check_x(holder)
-        expected_x = self.data['X']
-        expected_y = self.data['Y']
-        np.testing.assert_array_equal(
-            expected_x, actual_x,
-            err_msg='Expected {}, but found {}.'.format(expected_x, actual_x))
-        np.testing.assert_array_equal(
-            expected_y, actual_y,
-            err_msg='Expected {}, but found {}.'.format(expected_y, actual_y))
-
     def test_fit_transform(self):
         """The fit_transform method should call the _fit_imc method to fit the IMC, finally returning the W and H matrices and returning a warning if convergence is not achieved."""  # noqa
         expected = np.array(
-            [262.390671, -9.4394948e-13, -8.30935225e-29, -3.48586706e-62,
-             3.95835182e-13, -3.54002186e-92, 262.390671, 3.63734141e-125,
-             3.95835182e-13, -3.96376806e-158])
+            [-1.06455138e2, -1.02742138e-13, 4.89509721e-30, -1.11717223e-59,
+             5.26175380e2, 1.25470694e-91, -1.06455138e2, -7.13882988e-125,
+             5.26175380e2, 4.16328484e-157])
         actual = self.imcs['imc0']\
             .fit_transform((self.data['X'], self.data['Y']), self.data['R'])[0]
         np.testing.assert_allclose(
             expected, actual[:10],
             err_msg='Expected {}, but found {}.'.format(expected, actual[:10]))
         expected = np.array(
-            [261.41078838, -8.549312e-13, -7.525747e-29, -3.157136e-62,
-             3.585063e-13, -3.2061835e-92, 261.41078838, 3.2943254e-125,
-             3.585063e-13, -3.58996873e-158])
+            [-1.0457636e2, -1.35697449e-3, -1.35697449e-3, -1.35697449e-3,
+             5.217910e2, -1.35697449e-3, -1.0457636e2, -1.35697449e-3,
+             5.217910e2, -1.35697449e-3])
         actual = self.imcs['imck']\
             .fit_transform((self.data['X'], self.data['Y']), self.data['R'])[0]
         np.testing.assert_allclose(
@@ -212,7 +152,7 @@ class IMCTest(unittest.TestCase):
         self.assertEqual(
             expected, actual_err,
             msg='Expected {}, but found {}.'.format(expected, actual_err))
-        expected_err = -2277.336256013376
+        expected_err = 5.748504798089005
         err = result.reconstruction_err_
         np.testing.assert_allclose(
             expected_err, err,
