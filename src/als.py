@@ -281,6 +281,8 @@ class ALS(BaseEstimator):
         with np.load('feature.npz') as loader:
             user_feats = loader['user']
         self.user_feats[:, user] = user_feats
+        for _file in ['data.npz', 'feature.npz']:
+            os.remove(_file)
 
     def add_user(self):
         """Add a user to the model.
