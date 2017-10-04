@@ -144,13 +144,13 @@ class ALS(BaseEstimator):
         sps.save_npz('data', data)
         try:
             subprocess.run(
-                ['fit_als.py', str(self.rank), str(self.tol),
-                 str(self.alpha), '-rs', 'random.pkl', '-j',
-                 str(self.n_jobs), '-v', str(self.verbose)],
+                ['fit_als.py', '-r', str(self.rank), '-a', str(self.alpha),
+                 'All', 'data.npz', '-t', str(self.tol), '-rs', 'random.pkl',
+                 '-j', str(self.n_jobs), '-v', str(self.verbose)],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
         except subprocess.CalledProcessError as err:
-            err_msg = '\n\t'.join(err.stderr.decode().split('\n'))
-            raise ValueError('Fitting ALS failed with error:\n\t{}'
+            err_msg = '\n'.join(err.stderr.decode().split('\n'))
+            raise ValueError('Fitting ALS failed with error:\n{}'
                              .format(err_msg))
         with np.load('features.npz') as loader:
             self.user_feats = loader['user']
@@ -272,12 +272,17 @@ class ALS(BaseEstimator):
         """
         check_is_fitted(self, ['item_feats', 'user_feats'])
         self.data[user, item] = rating
-        submat = self.item_feats[:, self.data[user].indices]
-        row = self.data[user].data
-        col = self._update_one(submat, row, self.rank, self.lambda_)
-        self.user_feats[:, user] = col
+        sps.save_npz('data', self.data)
+        np.savez('features', user=self.user_feats, item=self.item_feats)
+        subprocess.run(
+            ['fit_als.py', '-r', str(self.rank), '-a', str(self.alpha),
+             'One', str(user), 'data.npz', 'features.npz'],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+        with np.load('feature.npz') as loader:
+            user_feats = loader['user']
+        self.user_feats[:, user] = user_feats
 
-    def add_user(self, user_id):
+    def add_user(self):
         """Add a user to the model.
 
         When a new user is added append a new row to the data matrix and
@@ -286,17 +291,10 @@ class ALS(BaseEstimator):
         method to calculate the least squares approximation of the user
         features.
 
-        Parameters
-        ----------
-        user_id : integer
-            The index for the user.
-
         """
         check_is_fitted(self, ['item_feats', 'user_feats'])
         shape = self.data._shape
-        if user_id >= shape[0]:
-            self.data = sps.vstack([self.data, sps.csr_matrix((1, shape[1]))],
-                                   format='csr')
-        if user_id >= self.user_feats.shape[1]:
-            new_col = np.zeros((self.rank, 1))
-            self.user_feats = np.hstack((self.user_feats, new_col))
+        self.data = sps.vstack([self.data, sps.csr_matrix((1, shape[1]))],
+                               format='csr')
+        new_col = np.zeros((self.rank, 1))
+        self.user_feats = np.hstack((self.user_feats, new_col))

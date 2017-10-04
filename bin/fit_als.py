@@ -13,43 +13,66 @@ import numpy as np
 import scipy.sparse as sps
 from sklearn.metrics import mean_squared_error
 
+np.seterr(divide='ignore', invalid='ignore')
 
 PARSER = argparse.ArgumentParser(
     description='Run the Alternating Least Squares algorithm in parallel.')
+SUBPARSERS = PARSER.add_subparsers(
+    help='Fit either one user or all users/items.', dest='command')
+SUBPARSER_ONE = SUBPARSERS.add_parser('One')
+SUBPARSER_ALL = SUBPARSERS.add_parser('All')
 PARSER.add_argument(
-    'rank', metavar='Rank', type=int,
+    '-r', '--rank', metavar='Rank', type=int, default=10,
     help='The number of latent features (rank) in the matrix decomposition.')
 PARSER.add_argument(
-    'tol', metavar='Tolerance', type=float,
-    help='The tolerance of the stopping condition.')
-PARSER.add_argument(
-    'alpha', metavar='Lambda', type=float,
+    '-a', '--alpha', metavar='Lambda', type=float, default=0.1,
     help='The regularization penalty.')
-PARSER.add_argument(
-    '-j', '--jobs', metavar='N_jobs', type=int,
+SUBPARSER_ALL.add_argument(
+    'data', metavar='data', type=str,
+    help='Name of file containing the data matrix.')
+SUBPARSER_ALL.add_argument(
+    '-t', '--tol', metavar='Tolerance', type=float, default=0.001,
+    help='The tolerance of the stopping condition.')
+SUBPARSER_ALL.add_argument(
+    '-j', '--jobs', metavar='N_jobs', type=int, default=1,
     help='Set the number of jobs to run in parallel.',
-    choices=[-1] + list(range(1, os.cpu_count())), default=1)
-PARSER.add_argument(
-    '-rs', '--random_state', metavar='Random_State',
+    choices=[-1] + list(range(1, os.cpu_count())))
+SUBPARSER_ALL.add_argument(
+    '-rs', '--random_state', metavar='Random_State', default=42,
     help='The random state to use. Must be either a filename of a pickled ' +
     'state of a RandomState or and integer.')
-PARSER.add_argument(
+SUBPARSER_ALL.add_argument(
     '-v', '--verbose', metavar='Verbosity', choices=[0, 1], type=int,
     help='Disable/Enable verbose output.', default=0)
+SUBPARSER_ONE.add_argument(
+    'index', metavar='Index', type=int,
+    help='The index of the user to update.')
+SUBPARSER_ONE.add_argument(
+    'data', metavar='Data Matrix', type=str,
+    help='Name of file containing the data matrix.')
+SUBPARSER_ONE.add_argument(
+    'features', metavar='Features', type=str,
+    help='Name of the file containing the user and item features.')
 ARGS = PARSER.parse_args()
-np.seterr(divide='ignore', invalid='ignore')
-if ARGS.jobs == -1:
-    ARGS.jobs = os.cpu_count()
-RATINGS = sps.load_npz('data.npz')
-if isinstance(ARGS.random_state, str) and ARGS.random_state.endswith('.pkl'):
-    with open(ARGS.random_state, 'rb') as state_file:
-        state = pickle.load(state_file)
-    RANDOM_STATE = np.random.RandomState()
-    RANDOM_STATE.set_state(state)
+print(ARGS)
+if ARGS.command == 'All':
+    if ARGS.jobs == -1:
+        ARGS.jobs = os.cpu_count()
+    RATINGS = sps.load_npz(ARGS.data)
+    RS = ARGS.random_state
+    if isinstance(RS, str) and RS.endswith('.pkl'):
+        with open(RS, 'rb') as state_file:
+            STATE = pickle.load(state_file)
+        RANDOM_STATE = np.random.RandomState()
+        RANDOM_STATE.set_state(STATE)
+    else:
+        RANDOM_STATE = np.random.RandomState(ARGS.random_state)
+    USER_FEATS = np.zeros((ARGS.rank, RATINGS.shape[0]))
+    ITEM_FEATS = RANDOM_STATE.rand(ARGS.rank, RATINGS.shape[1])
 else:
-    RANDOM_STATE = np.random.RandomState(ARGS.random_state)
-USER_FEATS = np.zeros((ARGS.rank, RATINGS.shape[0]))
-ITEM_FEATS = RANDOM_STATE.rand(ARGS.rank, RATINGS.shape[1])
+    RATINGS = sps.load_npz(ARGS.data)
+    with np.load(ARGS.features) as loader:
+        ITEM_FEATS = loader['item']
 
 
 def fit_als():
@@ -236,4 +259,10 @@ def root_mean_squared_error(true, pred):
 
 
 if __name__ == '__main__':
-    fit_als()
+    if ARGS.command == 'All':
+        fit_als()
+    else:
+        USER_FEAT = _update_one(
+            ARGS.index,
+            **{'rank': ITEM_FEATS.shape[0], 'alpha': ARGS.alpha, 'user': True})
+        np.savez('feature', user=USER_FEAT)
