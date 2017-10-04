@@ -6,11 +6,10 @@ import sys
 import unittest
 
 import numpy as np
-from scipy.sparse import csc_matrix
+from scipy.sparse import csr_matrix
 from sklearn.exceptions import NotFittedError
 
-from src.imc import (DataHolder, IMC, _check_init, _check_x, _cost, _cost_hess,
-                     _cost_prime, _fit_imc, _format_data)
+from src.imc import IMC, _cost, _cost_hess, _cost_prime, _fit_imc
 
 
 class IMCTest(unittest.TestCase):
@@ -27,41 +26,25 @@ class IMCTest(unittest.TestCase):
         pass
 
     def setUp(self):
-        """Set up the IMC class before each test."""
+        """Set up the variables needed for the tests."""
         self.imcs = {
-            'imc0': IMC(alpha=0.01, l1_ratio=0),
+            'imc0': IMC(alpha=0.01),
             'imck': IMC(n_components=2)}
-        h_component = np.arange(1, 41).reshape(2, 20)
         user_atts = np.array([
             [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0],
             [0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0]])
         item_atts = np.array([
             [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0],
             [0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]])
-        w_component = np.arange(1, 31).reshape(2, 15)
-        ratings_mat = np.array([[300, 6000], [9000, 12000]])
-        rows, cols = csc_matrix(ratings_mat).nonzero()
+        ratings_mat = csr_matrix(np.array([[300, 6000], [9000, 12000]]))
+        rows, cols = ratings_mat.nonzero()
         x_h = user_atts[rows]
-        y_h = item_atts[rows]
-        b_h = ratings_mat[rows, cols]
-        self.data = {
-            'r': b_h, 'x': x_h, 'y': y_h, 'H': h_component, 'W': w_component,
-            'R': ratings_mat, 'X': user_atts, 'Y': item_atts}
-        z_shape = (15, 20)
-        args_w = {
-            key: (h_component, x_h, y_h, b_h, 0.01, l1, w_component.shape)
-            for (key, l1) in zip([0, 1, 0.5], [0, 1, 0.5])}
-        args_cost = (x_h, y_h, b_h, 0.01, z_shape)
-        args_sparse = (
-            csc_matrix(x_h), csc_matrix(y_h), b_h, 0.01, z_shape)
-        args_ws = (
-            h_component, csc_matrix(x_h), csc_matrix(y_h), b_h, 0.01, 0,
-            w_component.shape)
-        self.args = {
-            'args_w': args_w, 'args_cost': args_cost, 'args_s': args_sparse,
-            'args_ws': args_ws}
+        y_h = item_atts[cols]
+        b_h = ratings_mat.data
+        self.data = {'r': b_h, 'x': x_h, 'y': y_h, 'R': ratings_mat,
+                     'X': user_atts, 'Y': item_atts}
+        self.args = (x_h, y_h, b_h, 0.01, (15, 20))
         self.input_cost = np.zeros(300)
-        self.input_w = w_component.flatten()
 
     def tearDown(self):
         """Teardown the IMC class after each test."""
@@ -70,7 +53,7 @@ class IMCTest(unittest.TestCase):
     def test_cost(self):
         """The _cost function should return the regularized sum squared error."""  # noqa
         expected = 130545000.0
-        actual = _cost(self.input_cost, *self.args['args_cost'])
+        actual = _cost(self.input_cost, *self.args)
         self.assertEqual(
             expected, actual,
             msg='Expected {}, but found {}.'.format(expected, actual))
@@ -79,7 +62,7 @@ class IMCTest(unittest.TestCase):
         """The _cost_prime function should return the gradient of the regularized sum squared error with respect to W and H."""  # noqa
         expected = np.array(
             [-6300, 0, 0, 0, 0, 0, -6300, 0, 0, 0])
-        actual = _cost_prime(self.input_cost, *self.args['args_cost'])[:10]
+        actual = _cost_prime(self.input_cost, *self.args)[:10]
         np.testing.assert_allclose(
             expected, actual,
             err_msg='Expected {}, but found {}.'.format(expected, actual))
@@ -90,7 +73,7 @@ class IMCTest(unittest.TestCase):
             [3096.01, 0.01, 0.01, 0.01, 0.01, 0.01, 3096.01, 0.01, 0.01, 0.01])
         hess_p = np.arange(300)
         actual = _cost_hess(
-            self.input_cost, hess_p, *self.args['args_cost'])[:10]
+            self.input_cost, hess_p, *self.args)[:10]
         np.testing.assert_allclose(
             expected, actual,
             err_msg='Expected {}, but found {}.'.format(expected, actual))
@@ -99,7 +82,7 @@ class IMCTest(unittest.TestCase):
         """The _fit_imc function should solve for W and H or just W depending on the value of `update_H`, return W, H and a result message."""  # noqa
         with self.assertRaises(ValueError) as context:
             _fit_imc(
-                self.data['r'], self.data['x'], self.data['y'],
+                self.data['x'], self.data['y'], self.data['r'],
                 n_components=0)
         expected_msg = 'Number of components must be a positive integer; ' +\
             'got (n_components=0).'
@@ -235,27 +218,6 @@ class IMCTest(unittest.TestCase):
             expected_err, err,
             err_msg='Expected {}, but found {}.'.format(expected_err, err))
 
-    # def test_transform(self):
-    #     """The transform method should return the W matrix constructed from the fitted model."""  # noqa
-    #     with self.assertRaises(NotFittedError) as context:
-    #         self.imcs['imc0'].transform(
-    #             (self.data['X'], self.data['Y']), self.data['R'])
-    #     expected_msg = "This IMC instance is not fitted yet. Call 'fit' " +\
-    #         "with appropriate arguments before using this method."
-    #     actual_msg = str(context.exception)
-    #     self.assertEqual(
-    #         expected_msg, actual_msg,
-    #         msg='Expected {}, but found {}.'.format(expected_msg, actual_msg))
-    #     expected = np.array([
-    #         -0.1528, 5.285e-25, 0, -0.1222, 0, 0, -0.1528, 0, 0, -0.1222, 0,
-    #         0, -0.1528, -0.1222, 0])
-    #     self.imcs['imc0'].fit((self.data['X'], self.data['Y']), self.data['R'])
-    #     actual = self.imcs['imc0'].transform(
-    #         (self.data['X'], self.data['Y']), self.data['R'])[0]
-    #     np.testing.assert_allclose(
-    #         expected, actual, rtol=1e-1, atol=1e-1,
-    #         err_msg='Expected {}, but found {}.'.format(expected, actual))
-    #
     def test_predict_one(self):
         """The predict_one method should call the predict method with the given user/item pair."""  # noqa
         with self.assertRaises(NotFittedError) as context:
