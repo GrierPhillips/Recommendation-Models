@@ -144,7 +144,7 @@ class ALS(BaseEstimator):
         sps.save_npz('data', data)
         try:
             subprocess.run(
-                ['python', 'fit_als.py', str(self.rank), str(self.tol),
+                ['fit_als.py', str(self.rank), str(self.tol),
                  str(self.alpha), '-rs', 'random.pkl', '-j',
                  str(self.n_jobs), '-v', str(self.verbose)],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
