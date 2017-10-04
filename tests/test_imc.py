@@ -300,9 +300,9 @@ class IMCTest(unittest.TestCase):
     def test_score(self):
         """Score method should return the root mean squared error for the reconstructed matrix."""  # noqa
         self.imcs['imc0'].fit((self.data['X'], self.data['Y']), self.data['R'])
-        expected = -2277.336256013376
+        expected = 5.748504798089005
         actual = self.imcs['imc0'].score(
-            (self.data['X'], self.data['Y']), self.data['R'], )
+            (self.data['X'], self.data['Y']), self.data['R'])
         np.testing.assert_allclose(
             expected, actual,
             err_msg='Expected {}, but found {}.'.format(expected, actual))
