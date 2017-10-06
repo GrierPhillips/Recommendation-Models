@@ -88,7 +88,7 @@ def _check_y(y, rows, cols):
         1-D array of real values.
 
     """
-    check_array(y, accept_sparse='csr')
+    check_array(y, accept_sparse='csr', ensure_2d=False)
     if issparse(y):
         out = y[rows, cols].A1
     else:

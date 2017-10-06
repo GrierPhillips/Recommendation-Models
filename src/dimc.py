@@ -78,6 +78,15 @@ class DirtyIMC(BaseEstimator):
                  als_alpha=0.1, imc_alpha=0.1, tol=0.1, random_state=None,
                  n_jobs=1, verbose=0):
         """Initialize instance of DirtyIMC."""
+        self.rank = rank
+        self.n_components = n_components
+        self.method = method
+        self.als_alpha = als_alpha
+        self.imc_alpha = imc_alpha
+        self.tol = tol
+        self.random_state = random_state
+        self.n_jobs = n_jobs
+        self.verbose = verbose
         self.als = ALS(rank=rank, alpha=als_alpha, tol=tol,
                        random_state=random_state, n_jobs=n_jobs,
                        verbose=verbose)
