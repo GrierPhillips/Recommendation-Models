@@ -45,43 +45,16 @@ def _check_x(X, indices=False):
     return out
 
 
-def _format_data(X, y=None, indices=False):
-    """Ensure data is structured properly.
 
     Parameters
     ----------
-    X : tuple, DataHolder, array-like
-        User and item data arrays. Can be attribtes or indices.
 
-    y : {array-like, sparse matrix}, optional (default=None)
-        A 1-D array or sparse matrix of the data to be modeled.
 
-    indices : boolean (default=False)
-        Boolean that verifies if indices are present in the data or not.
 
     Returns
     -------
-    x : array, shape (x_samples, p_attributes)
-        Array of user attributes or indices.
-
-    y : array, shape (x_samples, q_attributes)
-        Array of item attributes or indices
-
-    r : array, shape (x_samples, )
-        Array of actual ratings.
 
     """
-    out = _check_x(X, indices=indices)
-    if y is not None:
-        if issparse(y):
-            y = check_array(y, accept_sparse='csr')
-            y_ = y.data
-            if out[0].shape[0] != y.size:
-                rows, cols = y.nonzero()
-                out = tuple(out[i][rows] if i % 2 == 0 else out[i][cols] for i in range(len(out)))
-        else:
-            y_ = y.flatten()
-        return out + (y_, )
     return out
 
 

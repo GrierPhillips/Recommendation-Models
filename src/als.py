@@ -17,7 +17,7 @@ import scipy.sparse as sps
 from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_is_fitted, check_random_state
 
-from .utils import _format_data, root_mean_squared_error
+from .utils import _check_x, root_mean_squared_error
 
 # pylint: disable=E1101,W0212
 
@@ -130,11 +130,11 @@ class ALS(BaseEstimator):
         if (y.ndim < 2 or y.shape[0] == 1) and not shape:
             raise ValueError('When y is a scalar or 1-D array shape must be' +
                              'provided.')
-        users, items, vals = _format_data(X, y)
+        users, items = _check_x(X)
         if not sps.issparse(y):
             data = sps.lil_matrix(shape)
             for idx, (i, j) in enumerate(zip(users, items)):
-                data[i, j] = vals[idx]
+                data[i, j] = y[idx]
             data = data.tocsr()
         else:
             data = y.tocsr()
@@ -176,7 +176,7 @@ class ALS(BaseEstimator):
 
         """
         check_is_fitted(self, ['item_feats', 'user_feats'])
-        users, items = _format_data(X)
+        users, items = _check_x(X)
         U = self.user_feats.T[users]
         V = self.item_feats.T[items]
         predictions = (U * V).sum(-1)
@@ -243,14 +243,10 @@ class ALS(BaseEstimator):
 
         """
         check_is_fitted(self, ['item_feats', 'user_feats'])
-        users, items, y = _format_data(X, y)
-        pred = np.array([
-            self.user_feats[:, users[i]].T.dot(self.item_feats[:, items[i]])
-            for i in range(users.shape[0])])
-        rmse = -root_mean_squared_error(y, pred)
+        users, items = _check_x(X)
         return rmse
 
-    def update_user(self, user, item, rating):
+    def update_user(self, user, item, value):
         """Update a single user's feature vector.
 
         When an existing user rates an item the feature vector for that user
@@ -266,12 +262,12 @@ class ALS(BaseEstimator):
         item : integer
             Index for the item
 
-        rating : integer
+        value : integer
             The value assigned to item by user.
 
         """
         check_is_fitted(self, ['item_feats', 'user_feats'])
-        self.data[user, item] = rating
+        self.data[user, item] = value
         sps.save_npz('data', self.data)
         np.savez('features', user=self.user_feats, item=self.item_feats)
         subprocess.run(

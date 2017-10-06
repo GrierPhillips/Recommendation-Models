@@ -21,7 +21,7 @@ from sklearn.base import BaseEstimator
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.utils.validation import check_is_fitted
 
-from .utils import _format_data, root_mean_squared_error
+from .utils import _check_x, root_mean_squared_error
 
 
 INTEGER_TYPES = (numbers.Integral, np.integer)
@@ -237,7 +237,8 @@ class IMC(BaseEstimator):
         H : array, shape (min(self.n_components, q_attributes), q_attributes)
 
         """
-        x, y_, r = _format_data(X, y)
+        x, y_ = _check_x(X)
+        r = y
         if self.n_components and self.n_components < x.shape[1]:
             self.n_components_ = self.n_components
         else:
@@ -287,7 +288,7 @@ class IMC(BaseEstimator):
             Array of predicted values for the user/items pairs.
 
         """
-        X, Y = _format_data(X)
+        X, Y = _check_x(X)
         x_z = X.dot(self.Z)
         prediction = x_z.dot(Y.T)
         return prediction
@@ -346,7 +347,8 @@ class IMC(BaseEstimator):
 
         """
         check_is_fitted(self, 'n_components_')
-        x, y_, r = _format_data(X, y)
+        x, y_ = _check_x(X)
+        r = y
         x_z = x.dot(self.Z)
         preds = np.array([x_z[row].dot(y_[row]) for row in range(x.shape[0])])
         rmse = -root_mean_squared_error(r, preds)
