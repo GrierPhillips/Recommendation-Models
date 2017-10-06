@@ -17,7 +17,7 @@ import scipy.sparse as sps
 from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_is_fitted, check_random_state
 
-from .utils import _check_x, root_mean_squared_error
+from .utils import _check_x, _check_y, root_mean_squared_error
 
 # pylint: disable=E1101,W0212
 
@@ -244,6 +244,8 @@ class ALS(BaseEstimator):
         """
         check_is_fitted(self, ['item_feats', 'user_feats'])
         users, items = _check_x(X)
+        r = _check_y(y, users, items)
+        rmse = -root_mean_squared_error(r, pred)
         return rmse
 
     def update_user(self, user, item, value):

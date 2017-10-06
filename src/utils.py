@@ -25,6 +25,29 @@ def root_mean_squared_error(true, pred):
 
 
 def _check_x(X, indices=False):
+    """Check structure of X array and return internally stored arrays.
+
+    This is a helper function that allows for the use of GridSearchCV and other
+    cross validation methods with models that take more than one array as input
+    for training values. When grid searching such models data must be passed as
+    a DataHolder object so that it can be split properly. This method ensures
+    that if a DataHolder is passed to a method the data will be properly
+    structured before continuing downstream.
+
+    Parameters
+    ----------
+    X : tuple or DataHodler
+        Structure containing arrays of training values.
+
+    indices : boolean (default=False)
+        Boolean indicating the presence of index arrays in X.
+
+    Returns
+    -------
+    out : tuple
+        Tuple containing arrays of training values.
+
+    """
     if indices:
         len_ = 4
     else:
@@ -45,16 +68,31 @@ def _check_x(X, indices=False):
     return out
 
 
+def _check_y(y, rows, cols):
+    """Check structure of y array and return flattened values.
 
     Parameters
     ----------
+    y : {array-like, sparse matrix}
+        Array of real values or sparse matrix containing real values.
 
+    rows : array
+        Array of row indices of nonzero values in sparse matrix.
 
+    cols : array
+        Array of column indices of nonzero values in sparse matrix.
 
     Returns
     -------
+    out : array
+        1-D array of real values.
 
     """
+    check_array(y, accept_sparse='csr')
+    if issparse(y):
+        out = y[rows, cols].A1
+    else:
+        out = y.flatten()
     return out
 
 

@@ -224,7 +224,7 @@ class IMC(BaseEstimator):
         X : tuple, len = 2
             Tuple containing matrices of user attributes and item attributes.
 
-        y : {array-like, sparse matrix}, shape (n_samples, m_samples)
+        y : array-like, shape (n_samples, )
             Data matrix to be decomposed.
 
         Z : array-like, shape (p_attributes, q_attributes)
@@ -260,7 +260,7 @@ class IMC(BaseEstimator):
         X : tuple, len = 2
             Tuple containing matrices of user attributes and item attributes.
 
-        y : {array-like, sparse matrix}, shape (n_samples, m_samples)
+        y : array-like, shape (n_samples, )
             Data matrix to be decomposed.
 
         Z : array-like, shape (p_attributes, q_attributes)
@@ -337,7 +337,7 @@ class IMC(BaseEstimator):
         X : tuple, len = 2
             Tuple containing matrices of user attributes and item attributes.
 
-        y : {array-like, sparse matrix}, shape (n_samples, m_samples)
+        y : array-like, shape (n_samples, )
             Data matrix to be decomposed.
 
         Returns
