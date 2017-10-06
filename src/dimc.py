@@ -10,8 +10,7 @@ Schreiber R., Pan R. (2008) Large-Scale Parallel Collaborative Filtering for
 the Netflix Prize.
 
 """
-import numpy as np
-from scipy.sparse import lil_matrix, issparse
+from scipy.sparse import issparse
 from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_is_fitted
 
