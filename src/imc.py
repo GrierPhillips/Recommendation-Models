@@ -43,7 +43,7 @@ def _cost(arr, *args):
     users, items, ratings, lam, shape = args
     z_arr = arr.reshape(shape)
     x_z = users.dot(z_arr)
-    preds = np.array([x_z[i].dot(items[i]) for i in range(x_z.shape[0])])
+    preds = (x_z * items).sum(-1)
     sse = 0.5 * np.sum((ratings - preds) ** 2 + lam * norm(z_arr) ** 2)
     return sse
 
@@ -64,7 +64,7 @@ def _cost_prime(arr, *args):
     users, items, ratings, lam, shape = args
     z_arr = arr.reshape(shape)
     x_z = users.dot(z_arr)
-    diag = np.array([x_z[i].dot(items[i]) for i in range(x_z.shape[0])])
+    diag = (x_z * items).sum(-1)
     x_r = np.multiply(users.T, ratings)
     grad_z = users.T.dot(diags(diag).dot(items)) - x_r.dot(items) + lam * z_arr
     return grad_z.ravel()
@@ -90,7 +90,7 @@ def _cost_hess(_, s_vec, *args):
     users, items, _, lam, shape = args
     s_vec = s_vec.reshape(shape)
     x_s = users.dot(s_vec)
-    diag = np.array([x_s[i].dot(items[i]) for i in range(x_s.shape[0])])
+    diag = (x_s * items).sum(-1)
     hess_z = users.T.dot(diags(diag).dot(items)) + lam
     return hess_z.ravel()
 
@@ -350,6 +350,6 @@ class IMC(BaseEstimator):
         x, y_ = _check_x(X)
         r = y
         x_z = x.dot(self.Z)
-        preds = np.array([x_z[row].dot(y_[row]) for row in range(x.shape[0])])
+        preds = (x_z * y_).sum(-1)
         rmse = -root_mean_squared_error(r, preds)
         return -rmse
