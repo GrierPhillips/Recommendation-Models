@@ -238,13 +238,13 @@ class IMC(BaseEstimator):
 
         """
         x, y_ = _check_x(X)
-        r = y
+        r_ = y
         if self.n_components and self.n_components < x.shape[1]:
             self.n_components_ = self.n_components
         else:
             self.n_components_ = x.shape[1]
         Z, success, msg = _fit_imc(
-            x, y_, r, Z=Z, n_components=self.n_components_, method=self.method,
+            x, y_, r_, Z=Z, n_components=self.n_components_, method=self.method,
             alpha=self.alpha, verbose=self.verbose)
         if not success:
             warnings.warn(msg, ConvergenceWarning, stacklevel=1)
@@ -348,8 +348,8 @@ class IMC(BaseEstimator):
         """
         check_is_fitted(self, 'n_components_')
         x, y_ = _check_x(X)
-        r = y
+        r_ = y
         x_z = x.dot(self.Z)
         preds = (x_z * y_).sum(-1)
-        rmse = -root_mean_squared_error(r, preds)
+        rmse = -root_mean_squared_error(r_, preds)
         return -rmse

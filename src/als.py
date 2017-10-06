@@ -244,9 +244,9 @@ class ALS(BaseEstimator):
         """
         check_is_fitted(self, ['item_feats', 'user_feats'])
         users, items = _check_x(X)
-        r = _check_y(y, users, items)
+        r_ = _check_y(y, users, items)
         pred = (self.user_feats.T[users] * self.item_feats.T[items]).sum(-1)
-        rmse = -root_mean_squared_error(r, pred)
+        rmse = -root_mean_squared_error(r_, pred)
         return rmse
 
     def update_user(self, user, item, value):
