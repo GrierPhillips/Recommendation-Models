@@ -85,10 +85,10 @@ def fit_als():
     while diff > ARGS.tol:
         update()
         true = RATINGS.data
-        non_zeros = RATINGS.nonzero()
-        pred = np.array([
-            predict_one(user, item)
-            for user, item in zip(non_zeros[0], non_zeros[1])])
+        users, items = RATINGS.nonzero()
+        U = USER_FEATS.T[users]
+        V = ITEM_FEATS.T[items]
+        pred = (U * V).sum(-1)
         new_rmse = root_mean_squared_error(true, pred)
         diff = rmse - new_rmse
         rmse = new_rmse
