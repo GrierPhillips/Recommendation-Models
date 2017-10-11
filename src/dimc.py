@@ -87,11 +87,6 @@ class DirtyIMC(BaseEstimator):
         self.random_state = random_state
         self.n_jobs = n_jobs
         self.verbose = verbose
-        self.als = ALS(rank=rank, alpha=als_alpha, tol=tol,
-                       random_state=random_state, n_jobs=n_jobs,
-                       verbose=verbose)
-        self.imc = IMC(n_components=n_components, method=method,
-                       alpha=imc_alpha, verbose=verbose)
 
     def fit(self, X, y, Z=None, shape=None):
         """Fit the model to the given data.
@@ -147,6 +142,11 @@ class DirtyIMC(BaseEstimator):
             The array of latent item features.
 
         """
+        self.als = ALS(rank=self.rank, alpha=self.als_alpha, tol=self.tol,
+                       random_state=self.random_state, n_jobs=self.n_jobs,
+                       verbose=self.verbose)
+        self.imc = IMC(n_components=self.n_components, method=self.method,
+                       alpha=self.imc_alpha, verbose=self.verbose)
         x, y_, users, items = _check_x(X, indices=True)
         if (y.ndim < 2 or y.shape[0] == 1) and not shape:
             raise ValueError('When y is a scalar or 1-D array shape must be' +
@@ -176,8 +176,7 @@ class DirtyIMC(BaseEstimator):
             1-D array of all predicted values for the given user/item pairs.
 
         """
-        check_is_fitted(self.imc, ['Z'])
-        check_is_fitted(self.als, ['item_feats', 'user_feats'])
+        check_is_fitted(self, ['imc', 'als'])
         x, y_, users, items = _check_x(X, indices=True)
         U = self.als.user_feats[:, users]
         V = self.als.item_feats[:, items]
