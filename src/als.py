@@ -9,7 +9,6 @@ parallel in python with the built in concurrent.futures module.
 """
 
 import os
-import pickle
 import subprocess
 
 import numpy as np
@@ -139,26 +138,31 @@ class ALS(BaseEstimator):
         else:
             data = y.tocsr()
         random_state = check_random_state(self.random_state)
-        with open('random.pkl', 'wb') as state:
-            pickle.dump(random_state.get_state(), state)
-        sps.save_npz('data', data)
-        try:
-            subprocess.run(
-                ['fit_als.py', '-r', str(self.rank), '-a', str(self.alpha),
-                 'All', 'data.npz', '-t', str(self.tol), '-rs', 'random.pkl',
-                 '-j', str(self.n_jobs), '-v', str(self.verbose)],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
-        except subprocess.CalledProcessError as err:
-            err_msg = '\n'.join(err.stderr.decode().split('\n'))
-            raise ValueError('Fitting ALS failed with error:\n{}'
-                             .format(err_msg))
-        with np.load('features.npz') as loader:
-            self.user_feats = loader['user']
-            self.item_feats = loader['item']
-        for _file in ['data.npz', 'features.npz', 'random.pkl']:
-            os.remove(_file)
+
+        rmse = float('inf')
+        diff = rmse
+        item_avg = data.sum(0) / (data != 0).sum(0)
+        item_avg[np.isnan(item_avg)] = 0
+        self.item_feats = random_state.rand(self.rank, data.shape[1])
+        self.item_feats[0] = item_avg
+        self.user_feats = np.zeros((self.rank, data.shape[0]))
         self.data = data
-        self.reconstruction_err_ = self.score(X, y)
+
+        while diff > self.tol:
+            user_arrays = np.array_split(np.arange(self.data.shape[0]), self.n_jobs)
+            self._update_parallel(user_arrays)
+            item_arrays = np.array_split(np.arange(self.data.shape[1]), self.n_jobs)
+            self._update_parallel(item_arrays)
+            users, items = data.nonzero()
+            U = self.user_feats.T[users]
+            V = self.item_feats.T[items]
+            pred = (U * V).sum(-1)
+            new_rmse = root_mean_squared_error(data.data, pred)
+            diff = rmse - new_rmse
+            rmse = new_rmse
+            users, items = data.nonzero()
+            self.reconstruction_err_ = self.score(X, y)
+
         return self.user_feats, self.item_feats
 
     def _predict(self, X):
