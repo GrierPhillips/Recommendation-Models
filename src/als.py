@@ -190,6 +190,27 @@ class ALS(BaseEstimator):
                 else:
                     self.item_feats[:, index] = value
 
+    def _thread_update_features(self, indices, params):
+        """Split updates of feature matrices to multiple threads.
+
+        Args:
+            indices (np.ndarray): Array of integers representing the index of
+                the user or item that is to be updated.
+            params (dict): Parameters for the ALS algorithm.
+        Returns:
+            data (dict): Dictionary of data with the user or item to be updated
+                as key and the array of features as the values.
+
+        """
+        data = {}
+        out = Parallel(
+            n_jobs=self.n_jobs, backend='threading')(
+                delayed(self._update_one)(index, **params)
+                for index in indices)
+        for i, val in enumerate(out, start=indices[0]):
+            data[i] = val
+        return data
+
     def _predict(self, X):
         """Make predictions for the given arrays.
 
