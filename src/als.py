@@ -211,6 +211,90 @@ class ALS(BaseEstimator):
             data[i] = val
         return data
 
+    def _update_one(self, index, **params):
+        """Update a single column for one of the feature matrices.
+
+        Parameters
+        ----------
+        index : int
+            Integer representing the index of the user/item that is to be
+            updated.
+        params : dict
+            Parameters for the ALS algorithm.
+
+        Returns
+        -------
+        col : ndarray
+            An array that represents a column from the feature matrix that is
+            to be updated.
+
+        """
+        rank, alpha, user = params['rank'], params['alpha'], params['user']
+        if user:
+            submat = self.make_item_submats(index)
+            row = self.data[index].data
+        else:
+            submat = self.make_user_submats(index)
+            row = self.data[:, index].data
+        num_ratings = row.size
+        reg_sums = submat.dot(submat.T) + alpha * num_ratings * np.eye(rank)
+        feature_sums = submat.dot(row[np.newaxis].T)
+        try:
+            col = np.linalg.inv(reg_sums).dot(feature_sums)
+        except np.linalg.LinAlgError:
+            col = np.zeros((1, rank))
+        return col.ravel()
+
+    def make_user_submats(self, item):
+        """Get the user submatrix from a single item in the ratings matrix.
+
+        Parameters
+        ----------
+        item : int
+            Index of the item to construct the user submatrix for.
+
+        Returns
+        -------
+        submat : np.ndarray
+            Array containing the submatrix constructed by selecting the columns
+            from the user features for the ratings that exist for the given
+            column in the ratings matrix.
+
+        """
+        idx_dtype = sps.sputils.get_index_dtype(
+            (self.data.indptr, self.data.indices),
+            maxval=max(self.data.nnz, self.data.shape[0]))
+        indptr = np.empty(self.data.shape[1] + 1, dtype=idx_dtype)
+        indices = np.empty(self.data.nnz, dtype=idx_dtype)
+        data = np.empty(self.data.nnz,
+                        dtype=sps.sputils.upcast(self.data.dtype))
+        sps._sparsetools.csr_tocsc(
+            self.data.shape[0], self.data.shape[1],
+            self.data.indptr.astype(idx_dtype),
+            self.data.indices.astype(idx_dtype), self.data.data, indptr,
+            indices, data)
+        submat = self.user_feats[:, indices[indptr[item]:indptr[item + 1]]]
+        return submat
+
+    def make_item_submats(self, user):
+        """Get the item submatrix from a single user in the ratings matrix.
+
+        Parameters
+        ----------
+        user : int
+            Index of the user to construct the user submatrix for.
+
+        Returns
+        -------
+        submat : np.ndarray
+            Array containing the submatrix constructed by selecting the columns
+            from the item features for the ratings that exist for the given row
+            in the ratings matrix.
+
+        """
+        submat = self.item_feats[:, self.data[user].indices]
+        return submat
+
     def _predict(self, X):
         """Make predictions for the given arrays.
 
