@@ -58,7 +58,8 @@ def _cost_prime(arr, *args):
 
     Returns
     -------
-    grad_z : The gradient of the regularized sum squared error for the given array.
+    grad_z : array
+        The gradient of the regularized sum squared error for the given array.
 
     """
     users, items, ratings, lam, shape = args
