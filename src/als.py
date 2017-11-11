@@ -79,6 +79,8 @@ class ALS(BaseEstimator):
         self.alpha = alpha
         self.tol = tol
         self.random_state = random_state
+        if n_jobs == -1:
+            n_jobs = os.cpu_count()
         self.n_jobs = n_jobs
         self.verbose = verbose
 
