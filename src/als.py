@@ -11,6 +11,7 @@ parallel in python with the built in concurrent.futures module.
 import os
 import subprocess
 
+from joblib import Parallel, delayed
 import numpy as np
 import scipy.sparse as sps
 from sklearn.base import BaseEstimator
@@ -164,6 +165,30 @@ class ALS(BaseEstimator):
             self.reconstruction_err_ = self.score(X, y)
 
         return self.user_feats, self.item_feats
+
+    def _update_parallel(self, arrays, user=True):
+        """Update the given features in parallel.
+
+        Parameters
+        ----------
+        arrays : ndarray
+            Array of indices that represent which column of the features is
+            being updated.
+        user : bool
+            Boolean indicating wheter or not user features are being updated.
+
+        """
+        params = {'rank': self.rank, 'alpha': self.alpha, 'user': user}
+        out = Parallel(
+            n_jobs=self.n_jobs, verbose=self.verbose)(
+                delayed(self._thread_update_features)(array, params)
+                for array in arrays)
+        for result in out:
+            for index, value in result.items():
+                if user:
+                    self.user_feats[:, index] = value
+                else:
+                    self.item_feats[:, index] = value
 
     def _predict(self, X):
         """Make predictions for the given arrays.
