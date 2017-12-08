@@ -157,7 +157,7 @@ class ALS(BaseEstimator):
             self._update_parallel(user_arrays)
             item_arrays = np.array_split(np.arange(self.data.shape[1]),
                                          self.n_jobs)
-            self._update_parallel(item_arrays)
+            self._update_parallel(item_arrays, user=False)
             users, items = data.nonzero()
             U = self.user_feats.T[users]
             V = self.item_feats.T[items]
